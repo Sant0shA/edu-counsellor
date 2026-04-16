@@ -90,11 +90,11 @@ export default function Results({ result, sessionId, grade, onRestart }) {
         <ul className="pro-features">
           <li>
             <span className="pro-feat-icon">📄</span>
-            <div><strong>Detailed PDF report</strong><br />Big Five profile, strengths breakdown, and a parent summary</div>
+            <div><strong>Detailed PDF report</strong><br />Personality profile, strengths breakdown, and a parent summary</div>
           </li>
           <li>
             <span className="pro-feat-icon">🎯</span>
-            <div><strong>1:1 Edu Counseling session</strong><br />45 minutes with a trained counselor, personalised to your results</div>
+            <div><strong>Advanced Virtual Counselling</strong><br />Helping you find the right academic institutes for your path</div>
           </li>
           <li>
             <span className="pro-feat-icon">🗺️</span>
@@ -152,10 +152,6 @@ export default function Results({ result, sessionId, grade, onRestart }) {
         This is a starting point based on how you answered today. Interests and
         strengths develop over time — come back as you grow.
       </div>
-
-      <button className="btn-secondary" onClick={onRestart}>
-        Start over
-      </button>
 
       <p className="results-footer">CareerMap · Virtual Edu Guide · V1</p>
     </div>
