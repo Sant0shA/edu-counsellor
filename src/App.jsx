@@ -8,7 +8,7 @@ import Loading from './components/Loading'
 import Results from './components/Results'
 import { psychometric, personal, context as contextQs, getCognitiveQuestions } from './data/questions'
 import { buildPrompt } from './data/prompt'
-import { callVEG } from './utils/api'
+import { callVEG, saveSession } from './utils/api'
 
 export default function App() {
   const [screen, setScreen] = useState('intro')
@@ -22,12 +22,15 @@ export default function App() {
     motivations: [],
   })
   const [result, setResult] = useState(null)
+  const [sessionId, setSessionId] = useState(null)
 
   useEffect(() => {
     if (screen !== 'loading') return
     const prompt = buildPrompt(answers)
     callVEG(prompt)
-      .then((data) => {
+      .then(async (data) => {
+        const sid = await saveSession(answers.grade, answers, data)
+        setSessionId(sid)
         setResult(data)
         setScreen('results')
       })
@@ -48,6 +51,7 @@ export default function App() {
       motivations: [],
     })
     setResult(null)
+    setSessionId(null)
     setScreen('intro')
   }
 
@@ -169,7 +173,7 @@ export default function App() {
   }
 
   if (screen === 'results') {
-    return <Results result={result} onRestart={restart} />
+    return <Results result={result} sessionId={sessionId} grade={answers.grade} onRestart={restart} />
   }
 
   return null

@@ -876,6 +876,54 @@ p { color: var(--text); }
   text-align: center;
 }
 
+.pro-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.pro-input {
+  width: 100%;
+  padding: 13px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  font-size: 14px;
+  font-family: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.pro-input::placeholder { color: rgba(255, 255, 255, 0.4); }
+.pro-input:focus { outline: none; border-color: var(--accent); }
+
+.pro-form-error {
+  font-size: 12px;
+  color: #ffaa88;
+  margin-top: -4px;
+}
+
+.pro-thankyou {
+  text-align: center;
+  padding: 16px 0 8px;
+}
+
+.pro-thankyou-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.pro-thankyou-sub {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.6;
+}
+
 .results-disclaimer {
   font-size: 13px;
   color: var(--text-faint);

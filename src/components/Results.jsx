@@ -1,7 +1,28 @@
-export default function Results({ result, onRestart }) {
+import { useState } from 'react';
+import { submitProInterest } from '../utils/api';
+
+export default function Results({ result, sessionId, grade, onRestart }) {
+  const [form, setForm] = useState({ name: '', phone: '', email: '' });
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+
   if (!result) return null;
 
   const { headline, observation, question, domains = [] } = result;
+
+  async function handleProSubmit(e) {
+    e.preventDefault();
+    setFormError('');
+    setSubmitting(true);
+    try {
+      await submitProInterest({ ...form, grade, sessionId });
+      setSubmitted(true);
+    } catch {
+      setFormError('Something went wrong. Please try again.');
+    }
+    setSubmitting(false);
+  }
 
   return (
     <div className="screen results-screen">
@@ -57,6 +78,7 @@ export default function Results({ result, onRestart }) {
         ))}
       </div>
 
+      {/* Pro upgrade card */}
       <div className="pro-card">
         <div className="pro-card-header">
           <span className="pro-badge">CareerMap Pro</span>
@@ -83,13 +105,47 @@ export default function Results({ result, onRestart }) {
             <div><strong>Expert session invites</strong><br />Live sessions with industry leaders — ask them anything</div>
           </li>
         </ul>
-        <a
-          className="btn-pro"
-          href="mailto:hello@careermap.in?subject=CareerMap Pro — Early Access"
-        >
-          Get early access →
-        </a>
-        <p className="pro-card-note">Early access is free. We'll reach out when Pro launches.</p>
+
+        {submitted ? (
+          <div className="pro-thankyou">
+            <p className="pro-thankyou-title">You're on the list</p>
+            <p className="pro-thankyou-sub">
+              We'll reach out on WhatsApp when Pro launches.<br />Check your email for a confirmation.
+            </p>
+          </div>
+        ) : (
+          <form className="pro-form" onSubmit={handleProSubmit}>
+            <input
+              className="pro-input"
+              type="text"
+              placeholder="Your name"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              required
+            />
+            <input
+              className="pro-input"
+              type="tel"
+              placeholder="WhatsApp number"
+              value={form.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              required
+            />
+            <input
+              className="pro-input"
+              type="email"
+              placeholder="Email address"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              required
+            />
+            {formError && <p className="pro-form-error">{formError}</p>}
+            <button className="btn-pro" type="submit" disabled={submitting}>
+              {submitting ? 'Saving…' : 'Get early access →'}
+            </button>
+            <p className="pro-card-note">Early access is free. We'll reach out when Pro launches.</p>
+          </form>
+        )}
       </div>
 
       <div className="results-disclaimer">

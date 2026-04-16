@@ -53,6 +53,29 @@ const DEMO_RESULT = {
   ],
 };
 
+export async function saveSession(grade, answers, result) {
+  if (!import.meta.env.PROD) return null;
+  try {
+    const res = await fetch('/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grade, answers, result }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.sessionId ?? null;
+  } catch { return null; } // fail silently — never block the user
+}
+
+export async function submitProInterest({ name, phone, email, grade, sessionId }) {
+  const res = await fetch('/api/waitlist', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, phone, email, grade, sessionId }),
+  });
+  if (!res.ok) throw new Error('Failed to submit');
+}
+
 async function parseVEGResponse(response) {
   const data = await response.json();
   const raw = data.choices?.[0]?.message?.content || '';
