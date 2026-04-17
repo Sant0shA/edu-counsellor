@@ -104,6 +104,14 @@ Return ONLY this JSON. No markdown. No explanation. No match scores or percentag
     }
   ],
   "strengths": ["strength 1", "strength 2", "strength 3", "strength 4"],
+  "activities": [
+    {
+      "title": "Short action title",
+      "description": "What to do and why it connects to their result",
+      "domain": "Which domain this maps to",
+      "timeframe": "This week"
+    }
+  ],
   "traits": {
     "curiosity": 0,
     "focus": 0,
@@ -134,6 +142,13 @@ Rules for traits (scores are integers 0-100):
 - empathy: how much they tune into others, care about impact on people, value harmony
 - calmness: how steady they are under pressure — 100 = very calm, 0 = highly sensitive
 - Score each trait relative to this student's signals — not compared to norms
+
+Rules for activities:
+- 6–8 items spread across all 3 domains
+- Mix of timeframes: 2–3 "This week", 2–3 "This month", 1–2 "Next 3 months"
+- Concrete and specific — not "research careers" but "watch one episode of [specific show/video]"
+- Each activity should feel achievable, not overwhelming
+- Tied directly to the student's actual signals and domains
 
 Rules for parentNote:
 - 2-3 warm sentences written for a parent, like a trusted teacher sharing what they noticed

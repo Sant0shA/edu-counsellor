@@ -99,17 +99,17 @@ app.post('/api/waitlist', async (req, res) => {
     resend.emails.send({
       from: 'CareerMap <noreply@atrios.in>',
       to: email,
-      subject: "You're on the CareerMap Pro list",
+      subject: "Your CareerMap Report — we'll be in touch",
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
-          <h2 style="margin:0 0 8px;color:#E8541A">You're on the list, ${name}.</h2>
-          <p style="margin:0 0 20px;color:#555">We'll reach out on WhatsApp (<strong>${phone}</strong>) as soon as CareerMap Pro launches.</p>
-          <p style="margin:0 0 8px;font-weight:600">Here's what Pro includes:</p>
+          <h2 style="margin:0 0 8px;color:#E8541A">Got it, ${name}.</h2>
+          <p style="margin:0 0 20px;color:#555">We'll reach out on WhatsApp (<strong>${phone}</strong>) to complete your order and send your report.</p>
+          <p style="margin:0 0 8px;font-weight:600">Your report includes:</p>
           <ul style="padding-left:20px;color:#444;line-height:1.8">
-            <li><strong>Detailed PDF report</strong> — Personality profile, strengths breakdown, and a parent summary</li>
-            <li><strong>Advanced Virtual Counselling</strong> — Helping you find the right academic institutes for your path</li>
-            <li><strong>Career handholding</strong> — Monthly check-ins, goal tracking, and curated next steps</li>
-            <li><strong>Expert session invites</strong> — Live sessions with industry leaders — ask them anything</li>
+            <li><strong>Full report PDF</strong> — Strengths, traits, all domain paths, and a parent summary</li>
+            <li><strong>Activity tracker</strong> — 6–8 things to do over the next 3 months, mapped to your results</li>
+            <li><strong>Parent summary</strong> — Written for your parents so they understand where you're headed</li>
+            <li><strong>All career paths unlocked</strong> — The full list of paths within every domain</li>
           </ul>
           <p style="margin:24px 0 0;color:#888;font-size:13px">— The CareerMap team · <a href="https://edu-counsellor-production.up.railway.app" style="color:#E8541A">CareerMap</a></p>
         </div>`,

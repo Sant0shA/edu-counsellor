@@ -105,39 +105,39 @@ export default function Results({ result, sessionId, grade, onRestart }) {
         ))}
       </div>
 
-      {/* Pro upgrade card */}
+      {/* Report card */}
       <div className="pro-card">
         <div className="pro-card-header">
-          <span className="pro-badge">CareerMap Pro</span>
-          <p className="pro-card-title">Your guide has more to show you</p>
+          <span className="pro-badge">Your CareerMap Report</span>
+          <p className="pro-card-title">Turn your result into a plan</p>
           <p className="pro-card-sub">
-            The free result gives you direction. Pro gives you a plan.
+            One report. Your personalised guide for the next few months. ₹99 + GST
           </p>
         </div>
         <ul className="pro-features">
           <li>
             <span className="pro-feat-icon">📄</span>
-            <div><strong>Detailed PDF report</strong><br />Personality profile, strengths breakdown, and a parent summary</div>
-          </li>
-          <li>
-            <span className="pro-feat-icon">🎯</span>
-            <div><strong>Advanced Virtual Counselling</strong><br />Helping you find the right academic institutes for your path</div>
+            <div><strong>Full report PDF</strong><br />Strengths, traits, all domain paths, and a parent summary — yours to keep</div>
           </li>
           <li>
             <span className="pro-feat-icon">🗺️</span>
-            <div><strong>Career handholding</strong><br />Monthly check-ins, goal tracking, and curated next steps</div>
+            <div><strong>Activity tracker</strong><br />6–8 things to do over the next 3 months, mapped to your results</div>
           </li>
           <li>
-            <span className="pro-feat-icon">🎤</span>
-            <div><strong>Expert session invites</strong><br />Live sessions with industry leaders — ask them anything</div>
+            <span className="pro-feat-icon">👨‍👩‍👧</span>
+            <div><strong>Parent summary</strong><br />A section written for your parents so they understand where you're headed</div>
+          </li>
+          <li>
+            <span className="pro-feat-icon">🎯</span>
+            <div><strong>All career paths unlocked</strong><br />The full list of paths within every domain — not just the highlights</div>
           </li>
         </ul>
 
         {submitted ? (
           <div className="pro-thankyou">
-            <p className="pro-thankyou-title">You're on the list</p>
+            <p className="pro-thankyou-title">We've got your details</p>
             <p className="pro-thankyou-sub">
-              We'll reach out on WhatsApp when Pro launches.<br />Check your email for a confirmation.
+              We'll be in touch on WhatsApp to complete your order.<br />Check your email for next steps.
             </p>
           </div>
         ) : (
@@ -168,9 +168,9 @@ export default function Results({ result, sessionId, grade, onRestart }) {
             />
             {formError && <p className="pro-form-error">{formError}</p>}
             <button className="btn-pro" type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Get early access →'}
+              {submitting ? 'Saving…' : 'Get your report — ₹99 →'}
             </button>
-            <p className="pro-card-note">Early access is free. We'll reach out when Pro launches.</p>
+            <p className="pro-card-note">One-time purchase. We'll reach out on WhatsApp to complete your order.</p>
           </form>
         )}
       </div>
@@ -182,7 +182,7 @@ export default function Results({ result, sessionId, grade, onRestart }) {
         target="_blank"
         rel="noopener noreferrer"
       >
-        Share on WhatsApp
+        Know someone who should try this?
       </a>
 
       <div className="results-disclaimer">
