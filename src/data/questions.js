@@ -334,7 +334,7 @@ export const personal = [
     question: 'What quality do you most admire in people you look up to?',
     options: [
       'How clearly they explain complex things',
-      'The things they've built or created',
+      'The things they\'ve built or created',
       'How they handle failure and keep going',
       'The way they spot problems others miss',
       'The real-world difference they've made',
