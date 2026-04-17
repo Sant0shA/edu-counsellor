@@ -18,8 +18,6 @@ export function buildPrompt(answers) {
 
   // Grade is now captured before the assessment; context[] is city + relocation only
   const grade = gradeAnswer || 'not provided';
-  const location = cxAnswers[0] || 'not provided';
-  const relocation = cxAnswers[1] || 'not provided';
   const gradeInstruction = GRADE_INSTRUCTIONS[grade] || '';
 
   const cogScore = cAnswers.reduce((acc, ans, i) => {
@@ -51,8 +49,8 @@ export function buildPrompt(answers) {
     'Free time activities',
     'Career shadow choice',
     'Projective EQ — animal they find most fascinating',
-    'Person who inspires them and why',
-    'Moment they lost track of time (flow state signal)',
+    'Quality they most admire in role models (values signal)',
+    'Type of problem they most want to work on (purpose signal)',
   ];
   const personalLines = peAnswers
     .map((a, i) => `  ${personalLabels[i] || `Q${i + 1}`}: ${a}`)
@@ -88,11 +86,6 @@ ${cogLines}
 What they're into (Personal signals):
 ${personalLines}
 
-Context (Indian market):
-  Academic stage: ${grade}
-  Location: ${location}
-  Relocation openness: ${relocation}
-
 What matters most (Top 2 motivations):
 ${motivationLines}
 
@@ -109,7 +102,16 @@ Return ONLY this JSON. No markdown. No explanation. No match scores or percentag
       "paths": ["Specific path 1", "Specific path 2", "Specific path 3", "Specific path 4", "Specific path 5"],
       "explore": "One concrete thing they could try, watch, read or experience this week to learn more about this domain"
     }
-  ]
+  ],
+  "strengths": ["strength 1", "strength 2", "strength 3", "strength 4"],
+  "traits": {
+    "curiosity": 0,
+    "focus": 0,
+    "socialEnergy": 0,
+    "empathy": 0,
+    "calmness": 0
+  },
+  "parentNote": ""
 }
 
 Rules for domains:
@@ -117,5 +119,27 @@ Rules for domains:
 - Each domain should be genuinely distinct — no overlapping clusters
 - paths[] should have 4-6 specific careers or roles within that domain
 - explore should be a concrete action, not a vague suggestion
-- No percentages, no match scores, no ranking of domains`;
+- No percentages, no match scores, no ranking of domains
+
+Rules for strengths:
+- 4-6 items, each a specific observable behaviour or quality
+- Simple words, no jargon — readable by a Class 8 student
+- Grounded in what they actually answered, not generic praise
+- All framed positively and specifically. Example: "Gets completely absorbed in topics that genuinely interest them" or "Thinks through problems carefully before jumping in"
+
+Rules for traits (scores are integers 0-100):
+- curiosity: how much they seek out new ideas, follow threads, ask why things work
+- focus: how much they stick with things, prefer structure, follow through
+- socialEnergy: how energised they are by people and collaboration vs working alone
+- empathy: how much they tune into others, care about impact on people, value harmony
+- calmness: how steady they are under pressure — 100 = very calm, 0 = highly sensitive
+- Score each trait relative to this student's signals — not compared to norms
+
+Rules for parentNote:
+- 2-3 warm sentences written for a parent, like a trusted teacher sharing what they noticed
+- Specific to this student — never boilerplate or generic
+- Highlight what genuinely stands out about how they think or engage
+- Encouraging and forward-looking — make the parent feel proud and curious to explore more
+- Never mention Big Five, trait names, scores, or any psychological jargon
+- End with something to watch for or a gentle encouragement to keep exploring`;
 }

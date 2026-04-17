@@ -44,7 +44,7 @@ app.post('/api/veg', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'anthropic/claude-haiku-4-5',
-        max_tokens: 1200,
+        max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
@@ -97,7 +97,7 @@ app.post('/api/waitlist', async (req, res) => {
   if (resend) {
     // Confirmation to user
     resend.emails.send({
-      from: 'CareerMap <hello@edu.atrios.in>',
+      from: 'CareerMap <noreply@atrios.in>',
       to: email,
       subject: "You're on the CareerMap Pro list",
       html: `
@@ -118,7 +118,7 @@ app.post('/api/waitlist', async (req, res) => {
     // Notification to admin
     const adminEmail = process.env.ADMIN_EMAIL || 'santosh.abraham@atrios.in';
     resend.emails.send({
-      from: 'CareerMap <hello@edu.atrios.in>',
+      from: 'CareerMap <noreply@atrios.in>',
       to: adminEmail,
       subject: `New Pro lead: ${name}`,
       html: `

@@ -924,6 +924,44 @@ p { color: var(--text); }
   line-height: 1.6;
 }
 
+/* ── Strengths section ──────────────────────────────────────────────────── */
+.strengths-section { margin: 0 0 16px; }
+.strengths-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+.strengths-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.strength-item {
+  background: var(--accent-light);
+  border-left: 3px solid var(--accent);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+/* ── WhatsApp share ─────────────────────────────────────────────────────── */
+.btn-whatsapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 14px;
+  background: #25D366;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 15px;
+  font-family: inherit;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+
 .results-disclaimer {
   font-size: 13px;
   color: var(--text-faint);

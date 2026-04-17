@@ -356,28 +356,6 @@ export const personal = [
   },
 ];
 
-// ── Context: 2 questions, single-select — Indian market calibration ──
-// Grade is asked separately (GradeSelect screen) before the assessment begins.
-export const context = [
-  {
-    id: 'cx1',
-    question: 'Which best describes where you live?',
-    options: [
-      'Metro city (Mumbai, Delhi, Bengaluru, Chennai, Hyderabad, Pune)',
-      'Mid-size city (Jaipur, Kochi, Indore, Chandigarh, etc.)',
-      'Small town or rural area',
-    ],
-  },
-  {
-    id: 'cx2',
-    question: 'Would moving to another city for education or work be an option?',
-    options: [
-      'Definitely — open to it',
-      'Possibly — depends on the situation',
-      'Unlikely — prefer to stay close to home',
-    ],
-  },
-];
 
 // ── Motivations: pick top 2 ──
 export const motivations = [

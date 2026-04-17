@@ -117,7 +117,7 @@ export async function callVEG(prompt) {
     },
     body: JSON.stringify({
       model: 'anthropic/claude-haiku-4-5',
-      max_tokens: 1200,
+      max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     }),
   });

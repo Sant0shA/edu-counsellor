@@ -9,7 +9,7 @@ export default function Results({ result, sessionId, grade, onRestart }) {
 
   if (!result) return null;
 
-  const { headline, observation, question, domains = [] } = result;
+  const { headline, observation, question, domains = [], strengths = [] } = result;
 
   async function handleProSubmit(e) {
     e.preventDefault();
@@ -56,6 +56,18 @@ export default function Results({ result, sessionId, grade, onRestart }) {
       <div className="observation-card">
         <p className="observation-text">{observation}</p>
       </div>
+
+      {/* Strengths */}
+      {strengths.length > 0 && (
+        <div className="strengths-section">
+          <p className="strengths-title">What stands out about you</p>
+          <ul className="strengths-list">
+            {strengths.map((s, i) => (
+              <li key={i} className="strength-item">{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Coaching question */}
       <div className="question-card-result">
@@ -162,6 +174,16 @@ export default function Results({ result, sessionId, grade, onRestart }) {
           </form>
         )}
       </div>
+
+      {/* WhatsApp share */}
+      <a
+        className="btn-whatsapp"
+        href={`https://wa.me/?text=${encodeURIComponent('Take a look at this virtual career guide. Took me 5 mins and I was quite impressed with the feedback 👉 https://edu-counsellor-production.up.railway.app/')}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Share on WhatsApp
+      </a>
 
       <div className="results-disclaimer">
         These results are based on your responses today and are meant to give you a broad

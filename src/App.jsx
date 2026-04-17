@@ -6,7 +6,7 @@ import Checkpoint from './components/Checkpoint'
 import Motivations from './components/Motivations'
 import Loading from './components/Loading'
 import Results from './components/Results'
-import { psychometric, personal, context as contextQs, getCognitiveQuestions } from './data/questions'
+import { psychometric, personal, getCognitiveQuestions } from './data/questions'
 import { buildPrompt } from './data/prompt'
 import { callVEG, saveSession } from './utils/api'
 
@@ -18,7 +18,6 @@ export default function App() {
     psychometric: [],
     cognitive: [],
     personal: [],
-    context: [],
     motivations: [],
   })
   const [result, setResult] = useState(null)
@@ -47,7 +46,6 @@ export default function App() {
       psychometric: [],
       cognitive: [],
       personal: [],
-      context: [],
       motivations: [],
     })
     setResult(null)
@@ -148,20 +146,6 @@ export default function App() {
       <Motivations
         onComplete={(m) => {
           setAnswers((prev) => ({ ...prev, motivations: m }))
-          setScreen('context')
-        }}
-      />
-    )
-  }
-
-  if (screen === 'context') {
-    return (
-      <Assessment
-        tag="One last thing"
-        questions={contextQs}
-        multiSelect={false}
-        onComplete={(a) => {
-          setAnswers((prev) => ({ ...prev, context: a }))
           setScreen('loading')
         }}
       />
