@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 const MULTI_MAX = 2;
 
@@ -12,6 +12,11 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
   const total = questions.length;
   // Per-question override: singleSelect:true forces single-select even in a multi-select section
   const isMulti = multiSelect && !q.singleSelect;
+  // Shuffle options once per question — stable within a question, different each session
+  const shuffledOptions = useMemo(
+    () => [...(q.options || [])].sort(() => Math.random() - 0.5),
+    [current] // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const capReached = selectedMulti.length >= MULTI_MAX;
 
   function advance(value) {
@@ -66,7 +71,7 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
       </div>
 
       <div className="options-list">
-        {q.options.map((opt) => {
+        {shuffledOptions.map((opt) => {
           const isSelected = isMulti
             ? selectedMulti.includes(opt)
             : selectedSingle === opt;

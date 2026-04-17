@@ -3,6 +3,7 @@ const GRADE_INSTRUCTIONS = {
   'Class 10': 'The student is about to choose a stream (Science/Commerce/Arts). Where relevant, connect domain suggestions to stream thinking — but do not prescribe a stream. Help them see what excites them and why that matters for the choice ahead.',
   'Class 11 or 12': 'The student is actively planning after school. Domains and paths should be specific and actionable — mention entrance exams, degree types, or college areas where genuinely relevant. Be concrete about next steps.',
   'Just finished school or gap year': 'The student is at a transition point. They may be reconsidering choices or exploring options they missed. Be honest about multiple paths, including non-traditional ones. The explore action should be actionable within weeks.',
+  'In college / Undergraduate': 'The student is already in college and may be reconsidering their direction or planning what comes after. Focus on skills, specialisations, internships, and post-graduation paths. Be honest about pivoting — it is common and possible. Suggest concrete things they can do alongside their current degree.',
 };
 
 export function buildPrompt(answers) {

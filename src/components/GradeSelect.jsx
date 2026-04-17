@@ -5,6 +5,7 @@ const GRADES = [
   'Class 10',
   'Class 11 or 12',
   'Just finished school or gap year',
+  'In college / Undergraduate',
 ];
 
 export default function GradeSelect({ onComplete }) {
@@ -20,7 +21,7 @@ export default function GradeSelect({ onComplete }) {
       <span className="screen-logo">CareerMap</span>
       <div className="grade-intro">
         <p className="grade-intro-tag">Before we begin</p>
-        <h1 className="grade-intro-title">Which class are you currently in?</h1>
+        <h1 className="grade-intro-title">Where are you in your studies right now?</h1>
         <p className="grade-intro-sub">
           This helps us ask the right questions for where you are right now.
         </p>

@@ -45,7 +45,10 @@ app.post('/api/veg', async (req, res) => {
       body: JSON.stringify({
         model: 'anthropic/claude-haiku-4-5',
         max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [
+          { role: 'system', content: 'You output only valid JSON. No explanation, no preamble, no markdown. Your entire response must be parseable by JSON.parse().' },
+          { role: 'user', content: prompt },
+        ],
       }),
     });
 
