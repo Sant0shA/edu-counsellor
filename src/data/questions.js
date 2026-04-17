@@ -337,7 +337,7 @@ export const personal = [
       'The things they\'ve built or created',
       'How they handle failure and keep going',
       'The way they spot problems others miss',
-      'The real-world difference they've made',
+      'The real-world difference they\'ve made',
     ],
   },
   {
