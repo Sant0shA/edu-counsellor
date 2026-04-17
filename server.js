@@ -111,7 +111,7 @@ app.post('/api/waitlist', async (req, res) => {
             <li><strong>Career handholding</strong> — Monthly check-ins, goal tracking, and curated next steps</li>
             <li><strong>Expert session invites</strong> — Live sessions with industry leaders — ask them anything</li>
           </ul>
-          <p style="margin:24px 0 0;color:#888;font-size:13px">— The CareerMap team · <a href="https://edu.atrios.in" style="color:#E8541A">edu.atrios.in</a></p>
+          <p style="margin:24px 0 0;color:#888;font-size:13px">— The CareerMap team · <a href="https://edu-counsellor-production.up.railway.app" style="color:#E8541A">CareerMap</a></p>
         </div>`,
     }).catch((err) => console.error('Resend user email error:', err));
 
