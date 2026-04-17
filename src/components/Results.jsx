@@ -14,6 +14,21 @@ export default function Results({ result, sessionId, grade, onRestart }) {
   async function handleProSubmit(e) {
     e.preventDefault();
     setFormError('');
+
+    const phoneDigits = form.phone.replace(/\D/g, '');
+    const normalised = phoneDigits.startsWith('91') && phoneDigits.length === 12
+      ? phoneDigits.slice(2)
+      : phoneDigits;
+    if (!/^[6-9]\d{9}$/.test(normalised)) {
+      setFormError('Enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setFormError('Enter a valid email address.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await submitProInterest({ ...form, grade, sessionId });
