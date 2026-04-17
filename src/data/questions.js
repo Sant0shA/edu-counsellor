@@ -329,15 +329,30 @@ export const personal = [
   },
   {
     id: 'pe6',
-    type: 'text',
-    question: 'Think of someone whose work genuinely inspires you. What is it about them?',
-    hint: '',
+    type: 'options',
+    singleSelect: true,
+    question: 'What quality do you most admire in people you look up to?',
+    options: [
+      'How clearly they explain complex things',
+      'The things they've built or created',
+      'How they handle failure and keep going',
+      'The way they spot problems others miss',
+      'The real-world difference they've made',
+    ],
   },
   {
     id: 'pe7',
-    type: 'text',
-    question: 'One moment last week when you completely lost track of time…',
+    type: 'options',
+    singleSelect: true,
+    question: 'What kind of problem would you most want to work on?',
     hint: 'This is the most honest career signal there is',
+    options: [
+      'Designing or building things that don\'t exist yet',
+      'Understanding why people think and behave the way they do',
+      'Making complex systems work better',
+      'Creating things that move or connect people',
+      'Researching and discovering things not yet known',
+    ],
   },
 ];
 
