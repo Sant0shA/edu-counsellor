@@ -149,8 +149,11 @@ export default function Results({ result, sessionId, grade, onRestart }) {
       </div>
 
       <div className="results-disclaimer">
-        This is a starting point based on how you answered today. Interests and
-        strengths develop over time — come back as you grow.
+        These results are based on your responses today and are meant to give you a broad
+        starting point — not a final answer. Career paths are shaped by many factors that
+        a short assessment can't fully capture. Use this to explore directions that feel
+        worth looking into, not to close off others. Your interests and strengths will keep
+        evolving — the picture will get clearer as you grow.
       </div>
 
       <p className="results-footer">CareerMap · Virtual Edu Guide · V1</p>
