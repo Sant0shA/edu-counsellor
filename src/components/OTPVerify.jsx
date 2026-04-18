@@ -45,10 +45,7 @@ export default function OTPVerify({ email, onVerified, onBack }) {
   async function handleVerify(e) {
     e.preventDefault();
     const code = digits.join('');
-    if (code.length < OTP_LENGTH) {
-      setError('Enter all 6 digits.');
-      return;
-    }
+    if (code.length < OTP_LENGTH) { setError('Enter all 6 digits.'); return; }
     setError('');
     setVerifying(true);
     try {
@@ -90,96 +87,123 @@ export default function OTPVerify({ email, onVerified, onBack }) {
   }
 
   return (
-    <div className="px-8 py-10 flex flex-col items-center">
-      {/* Decorative blob */}
-      <div
-        className="absolute top-0 right-0 w-32 h-32 pointer-events-none"
-        style={{ background: 'rgba(255,219,207,0.2)', filter: 'blur(48px)', marginRight: '-4rem', marginTop: '-4rem' }}
-      />
+    <div style={{ padding: '40px 32px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
 
       {/* Header */}
-      <div className="text-center mb-8 w-full">
-        <h2
-          className="font-extrabold text-3xl text-on-surface tracking-tight mb-3"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-        >
-          Verify Your <span className="text-primary">Email</span>
+      <div style={{ textAlign: 'center', marginBottom: '32px', width: '100%' }}>
+        <h2 style={{
+          fontFamily: "'Plus Jakarta Sans', sans-serif",
+          fontSize: '26px', fontWeight: 800,
+          color: '#1f1b18', marginBottom: '10px', letterSpacing: '-0.3px',
+        }}>
+          Verify Your <span style={{ color: '#a53600' }}>Email</span>
         </h2>
-        <p className="text-on-surface-variant leading-relaxed">
+        <p style={{ color: '#594139', fontSize: '14px', lineHeight: 1.6 }}>
           Enter the 6-digit code sent to
         </p>
-        <p className="font-bold text-on-surface text-sm mt-1">{email}</p>
+        <p style={{ fontWeight: 700, color: '#1f1b18', fontSize: '14px', marginTop: '4px' }}>
+          {email}
+        </p>
       </div>
 
-      {/* OTP form */}
-      <form onSubmit={handleVerify} className="w-full space-y-8">
-        <div className="flex justify-between gap-2 w-full">
-          {digits.map((d, i) => (
-            <input
-              key={i}
-              ref={(el) => (inputRefs.current[i] = el)}
-              className="w-full h-14 text-center text-2xl font-bold text-on-surface bg-surface-container-lowest rounded-xl focus:outline-none transition-all"
+      {/* OTP inputs */}
+      <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '24px', justifyContent: 'center' }}>
+        {digits.map((d, i) => (
+          <input
+            key={i}
+            ref={(el) => (inputRefs.current[i] = el)}
+            type="text"
+            inputMode="numeric"
+            maxLength={OTP_LENGTH}
+            placeholder="•"
+            value={d}
+            onChange={(e) => handleDigitChange(i, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(i, e)}
+            onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px #a53600'}
+            onBlur={(e) => e.target.style.boxShadow = d ? '0 0 0 2px #a53600' : '0 0 0 1px rgba(226,191,180,0.5)'}
+            autoFocus={i === 0}
+            style={{
+              width: '44px', height: '54px',
+              flexShrink: 0,
+              textAlign: 'center',
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: '22px', fontWeight: 700,
+              color: '#1f1b18',
+              background: '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              boxShadow: d ? '0 0 0 2px #a53600' : '0 0 0 1px rgba(226,191,180,0.5)',
+              outline: 'none',
+              transition: 'box-shadow 0.15s',
+            }}
+          />
+        ))}
+      </div>
+
+      {error && (
+        <p style={{ fontSize: '13px', color: '#ba1a1a', textAlign: 'center', marginBottom: '12px' }}>
+          {error}
+        </p>
+      )}
+
+      {/* Verify button */}
+      <button
+        onClick={handleVerify}
+        disabled={verifying || digits.join('').length < OTP_LENGTH}
+        style={{
+          width: '100%', padding: '16px',
+          background: '#a53600', color: '#ffffff',
+          fontFamily: "'Plus Jakarta Sans', sans-serif",
+          fontSize: '16px', fontWeight: 700,
+          borderRadius: '999px', border: 'none', cursor: 'pointer',
+          marginBottom: '20px',
+          opacity: (verifying || digits.join('').length < OTP_LENGTH) ? 0.5 : 1,
+          transition: 'opacity 0.15s',
+        }}
+      >
+        {verifying ? 'Verifying…' : 'Verify & Start →'}
+      </button>
+
+      {/* Resend row */}
+      <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+        {resendTimer > 0 ? (
+          <span style={{ fontSize: '13px', color: '#594139' }}>Resend in {resendTimer}s</span>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+            <span style={{ fontSize: '13px', color: '#594139' }}>Didn't receive a code?</span>
+            <button
+              onClick={handleResend}
+              disabled={resending}
               style={{
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                border: 'none',
-                boxShadow: d ? '0 0 0 2px #a53600' : '0 0 0 1px rgba(226,191,180,0.4)',
+                fontSize: '13px', fontWeight: 700, color: '#a53600',
+                background: 'none', border: 'none', cursor: 'pointer',
+                textDecoration: 'underline', opacity: resending ? 0.6 : 1,
               }}
-              onFocus={e => e.target.style.boxShadow = '0 0 0 2px #a53600'}
-              onBlur={e => e.target.style.boxShadow = d ? '0 0 0 2px #a53600' : '0 0 0 1px rgba(226,191,180,0.4)'}
-              type="text"
-              inputMode="numeric"
-              maxLength={OTP_LENGTH}
-              placeholder="•"
-              value={d}
-              onChange={(e) => handleDigitChange(i, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(i, e)}
-              autoFocus={i === 0}
-            />
-          ))}
-        </div>
-
-        {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-
-        <div className="flex flex-col items-center gap-5">
-          <button
-            type="submit"
-            disabled={verifying || digits.join('').length < OTP_LENGTH}
-            className="w-full bg-primary text-on-primary font-bold py-4 rounded-full text-lg transition-all duration-300 active:scale-[0.98] disabled:opacity-50"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          >
-            {verifying ? 'Verifying…' : 'Verify & Start →'}
-          </button>
-
-          <div className="flex items-center gap-2">
-            {resendTimer > 0 ? (
-              <span className="text-on-surface-variant text-sm">Resend in {resendTimer}s</span>
-            ) : (
-              <>
-                <span className="text-on-surface-variant text-sm">Didn't receive a code?</span>
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resending}
-                  className="text-primary font-bold text-sm hover:underline underline-offset-4 disabled:opacity-60"
-                >
-                  {resending ? 'Sending…' : 'Resend code'}
-                </button>
-              </>
-            )}
+            >
+              {resending ? 'Sending…' : 'Resend code'}
+            </button>
           </div>
+        )}
+      </div>
 
-          <button
-            type="button"
-            onClick={onBack}
-            className="text-on-surface-variant text-sm underline underline-offset-4"
-          >
-            Change email
-          </button>
-        </div>
-      </form>
+      {/* Change email */}
+      <button
+        onClick={onBack}
+        style={{
+          fontSize: '13px', color: '#594139',
+          background: 'none', border: 'none', cursor: 'pointer',
+          textDecoration: 'underline',
+        }}
+      >
+        Change email
+      </button>
 
-      {/* Footer gradient bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-2 opacity-20" style={{ background: 'linear-gradient(to right, #a53600, #fe9d7a, #007abe)' }} />
+      {/* Footer gradient */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '4px',
+        background: 'linear-gradient(to right, #a53600, #fe9d7a, #007abe)',
+        opacity: 0.2,
+      }} />
     </div>
   );
 }

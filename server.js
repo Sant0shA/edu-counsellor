@@ -10,6 +10,28 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '64kb' }));
+app.set('trust proxy', 1);
+
+// ── HTML-escape user input before embedding in email templates ────────────────
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ── In-memory rate-limit state ────────────────────────────────────────────────
+const otpSendLog    = new Map(); // email → lastSentMs
+const otpAttempts   = new Map(); // email → { count, windowStart }
+const vegRateLog    = new Map(); // ip    → { count, windowStart }
+
+const OTP_SEND_COOLDOWN_MS   = 60 * 1000;
+const OTP_ATTEMPT_WINDOW_MS  = 15 * 60 * 1000;
+const OTP_MAX_ATTEMPTS       = 3;
+const VEG_WINDOW_MS          = 60 * 1000;
+const VEG_MAX_PER_WINDOW     = 10;
 
 // ── Postgres + Resend clients ─────────────────────────────────────────────────
 const pool = process.env.DATABASE_URL
@@ -27,6 +49,17 @@ app.post('/api/veg', async (req, res) => {
   if (!key) {
     return res.status(500).json({ error: 'API key not configured on server' });
   }
+
+  const ip = req.ip || 'unknown';
+  const vegEntry = vegRateLog.get(ip) || { count: 0, windowStart: Date.now() };
+  if (Date.now() - vegEntry.windowStart > VEG_WINDOW_MS) {
+    vegEntry.count = 0; vegEntry.windowStart = Date.now();
+  }
+  if (++vegEntry.count > VEG_MAX_PER_WINDOW) {
+    vegRateLog.set(ip, vegEntry);
+    return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
+  }
+  vegRateLog.set(ip, vegEntry);
 
   const { prompt } = req.body;
   if (!prompt || typeof prompt !== 'string') {
@@ -98,6 +131,12 @@ app.post('/api/waitlist', async (req, res) => {
 
   // Send emails — non-blocking, failure doesn't affect the response
   if (resend) {
+    const safeName     = escHtml(name);
+    const safePhone    = escHtml(phone);
+    const safeEmail    = escHtml(email);
+    const safeGrade    = escHtml(grade || '—');
+    const safeSession  = escHtml(sessionId || '—');
+
     // Confirmation to user
     resend.emails.send({
       from: 'CareerMap <noreply@atrios.in>',
@@ -105,8 +144,8 @@ app.post('/api/waitlist', async (req, res) => {
       subject: "Your CareerMap Report — we'll be in touch",
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
-          <h2 style="margin:0 0 8px;color:#E8541A">Got it, ${name}.</h2>
-          <p style="margin:0 0 20px;color:#555">We'll reach out on WhatsApp (<strong>${phone}</strong>) to complete your order and send your report.</p>
+          <h2 style="margin:0 0 8px;color:#E8541A">Got it, ${safeName}.</h2>
+          <p style="margin:0 0 20px;color:#555">We'll reach out on WhatsApp (<strong>${safePhone}</strong>) to complete your order and send your report.</p>
           <p style="margin:0 0 8px;font-weight:600">Your report includes:</p>
           <ul style="padding-left:20px;color:#444;line-height:1.8">
             <li><strong>Full report PDF</strong> — Strengths, traits, all domain paths, and a parent summary</li>
@@ -123,13 +162,13 @@ app.post('/api/waitlist', async (req, res) => {
     resend.emails.send({
       from: 'CareerMap <noreply@atrios.in>',
       to: adminEmail,
-      subject: `New Pro lead: ${name}`,
+      subject: `New Pro lead: ${safeName}`,
       html: `
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Phone:</strong> ${phone}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Grade:</strong> ${grade || '—'}</p>
-        <p><strong>Session ID:</strong> ${sessionId || '—'}</p>`,
+        <p><strong>Name:</strong> ${safeName}</p>
+        <p><strong>Phone:</strong> ${safePhone}</p>
+        <p><strong>Email:</strong> ${safeEmail}</p>
+        <p><strong>Grade:</strong> ${safeGrade}</p>
+        <p><strong>Session ID:</strong> ${safeSession}</p>`,
     }).catch((err) => console.error('Resend admin email error:', err));
   }
 
@@ -139,6 +178,12 @@ app.post('/api/waitlist', async (req, res) => {
 // ── Dev-mode OTP store (used when DATABASE_URL is not set) ───────────────────
 const devOtpStore = new Map(); // email → { code, expires }
 
+// Purge expired dev entries every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of devOtpStore) { if (v.expires < now) devOtpStore.delete(k); }
+}, 10 * 60 * 1000);
+
 // ── Auth: send OTP via Resend ─────────────────────────────────────────────────
 app.post('/api/auth/otp/send', async (req, res) => {
   const { email } = req.body;
@@ -147,6 +192,15 @@ app.post('/api/auth/otp/send', async (req, res) => {
   }
 
   const normalEmail = email.trim().toLowerCase();
+
+  // 1 OTP per 60 seconds per email
+  const lastSent = otpSendLog.get(normalEmail) || 0;
+  if (Date.now() - lastSent < OTP_SEND_COOLDOWN_MS) {
+    const retryAfter = Math.ceil((OTP_SEND_COOLDOWN_MS - (Date.now() - lastSent)) / 1000);
+    return res.status(429).json({ error: `Please wait ${retryAfter}s before requesting another code.` });
+  }
+  otpSendLog.set(normalEmail, Date.now());
+
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -194,6 +248,18 @@ app.post('/api/auth/otp/verify', async (req, res) => {
 
   const normalEmail = email.trim().toLowerCase();
 
+  // Brute-force guard: 3 attempts per 15 min per email
+  const entry = otpAttempts.get(normalEmail) || { count: 0, windowStart: Date.now() };
+  if (Date.now() - entry.windowStart > OTP_ATTEMPT_WINDOW_MS) {
+    entry.count = 0; entry.windowStart = Date.now();
+  }
+  if (entry.count >= OTP_MAX_ATTEMPTS) {
+    otpAttempts.set(normalEmail, entry);
+    return res.status(429).json({ error: 'Too many attempts. Please request a new code.' });
+  }
+  entry.count++;
+  otpAttempts.set(normalEmail, entry);
+
   // ── Dev fallback: no DB → check in-memory store ───────────────────────────
   if (!pool) {
     const stored = devOtpStore.get(normalEmail);
@@ -201,6 +267,7 @@ app.post('/api/auth/otp/verify', async (req, res) => {
       return res.status(401).json({ error: 'Invalid or expired code. Please try again.' });
     }
     devOtpStore.delete(normalEmail);
+    otpAttempts.delete(normalEmail);
     return res.json({ ok: true, userId: `dev-${normalEmail}` });
   }
 
@@ -228,6 +295,7 @@ app.post('/api/auth/otp/verify', async (req, res) => {
       [normalEmail, grade || null]
     );
 
+    otpAttempts.delete(normalEmail);
     res.json({ ok: true, userId: userRows[0].id });
   } catch (err) {
     res.status(500).json({ error: err.message });
