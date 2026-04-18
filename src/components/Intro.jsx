@@ -18,9 +18,9 @@ export default function Intro({ onStart }) {
       <div className="intro-outcomes">
         <p className="intro-outcomes-label">What you walk away with</p>
         <ul className="intro-outcomes-list">
-          <li>3 broad domains that match how you actually think</li>
-          <li>A coaching question to sit with</li>
-          <li>One concrete thing to try this week</li>
+          <li>3 career domains matched to <strong>how you actually think</strong></li>
+          <li>A question <strong>that'll stay with you</strong></li>
+          <li>One thing to try this week — <strong>specific to your result</strong></li>
         </ul>
       </div>
 
