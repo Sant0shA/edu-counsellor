@@ -26,3 +26,4 @@ dist-ssr
 # Local working files
 Feedback/
 *:Zone.Identifier
+.env

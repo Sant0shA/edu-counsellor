@@ -1,49 +1,44 @@
-import { useState } from 'react';
-import { submitProInterest } from '../utils/api';
+const GRADE_LABELS = {
+  'Class 8 or below': 'Early Explorer',
+  'Class 9': 'Early Explorer',
+  'Class 10': 'Early Explorer',
+  'Class 11': 'Decision Window',
+  'Class 12': 'Decision Window',
+  'In college / Undergraduate': 'Transition Point',
+  'Graduate / Working': 'Transition Point',
+};
 
-export default function Results({ result, sessionId, grade, onRestart }) {
-  const [form, setForm] = useState({ name: '', phone: '', email: '' });
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
+const VALUE_PROPS = [
+  {
+    text: <>Always assumed you'd follow a familiar path because that's what everyone around you did? This report looks at <strong>how you actually think</strong> — not just your marks or what's expected.</>,
+  },
+  {
+    text: <>The parent summary is written for your family — not for you. It gives them the language to understand where you're headed, and turns <strong>a difficult conversation into a real one.</strong></>,
+  },
+  {
+    text: <>If you're a parent trying to figure out which subjects or stream to choose — this report gives you something specific to work with. Not generic advice. <strong>Your child's actual signals.</strong></>,
+  },
+];
 
-  if (!result) return null;
+export default function Results({ result, sessionId, grade, userId, onRestart }) {
+  if (!result) return (
+    <div className="screen" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:'32px',textAlign:'center'}}>
+      <p style={{color:'#a53600',fontWeight:600,marginBottom:8}}>Something went wrong</p>
+      <p style={{color:'#594139',fontSize:14}}>We couldn't load your results. Please try again.</p>
+    </div>
+  );
 
-  const { headline, observation, question, domains = [], strengths = [] } = result;
-
-  async function handleProSubmit(e) {
-    e.preventDefault();
-    setFormError('');
-
-    const phoneDigits = form.phone.replace(/\D/g, '');
-    const normalised = phoneDigits.startsWith('91') && phoneDigits.length === 12
-      ? phoneDigits.slice(2)
-      : phoneDigits;
-    if (!/^[6-9]\d{9}$/.test(normalised)) {
-      setFormError('Enter a valid 10-digit Indian mobile number.');
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      setFormError('Enter a valid email address.');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await submitProInterest({ ...form, grade, sessionId });
-      setSubmitted(true);
-    } catch {
-      setFormError('Something went wrong. Please try again.');
-    }
-    setSubmitting(false);
-  }
+  const { headline, observation, question, domains = [] } = result;
+  const gradeLabel = GRADE_LABELS[grade] || null;
 
   return (
     <div className="screen results-screen">
       <div className="results-header">
         <span className="screen-logo">CareerMap</span>
-        <span className="results-badge">Your results</span>
+        <div className="results-header-right">
+          {gradeLabel && <span className="grade-label-badge">{gradeLabel}</span>}
+          <span className="results-badge">Your results</span>
+        </div>
       </div>
 
       {/* Headline */}
@@ -56,18 +51,6 @@ export default function Results({ result, sessionId, grade, onRestart }) {
       <div className="observation-card">
         <p className="observation-text">{observation}</p>
       </div>
-
-      {/* Strengths */}
-      {strengths.length > 0 && (
-        <div className="strengths-section">
-          <p className="strengths-title">What stands out about you</p>
-          <ul className="strengths-list">
-            {strengths.map((s, i) => (
-              <li key={i} className="strength-item">{s}</li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {/* Coaching question */}
       <div className="question-card-result">
@@ -90,7 +73,7 @@ export default function Results({ result, sessionId, grade, onRestart }) {
 
             <div className="domain-paths-label">Paths within this domain</div>
             <div className="domain-paths">
-              {(d.paths || []).map((p) => (
+              {(d.paths || []).slice(0, 2).map((p) => (
                 <span className="domain-path" key={p}>{p}</span>
               ))}
             </div>
@@ -101,88 +84,76 @@ export default function Results({ result, sessionId, grade, onRestart }) {
                 <p className="explore-text">{d.explore}</p>
               </div>
             )}
+
+            {(d.paths || []).length > 2 && (
+              <a className="paths-lock-note" href="#report-card">
+                See all 5 paths in your CareerMap Report →
+              </a>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Pro upgrade card */}
-      <div className="pro-card">
-        <div className="pro-card-header">
-          <span className="pro-badge">CareerMap Pro</span>
-          <p className="pro-card-title">Your guide has more to show you</p>
-          <p className="pro-card-sub">
-            The free result gives you direction. Pro gives you a plan.
-          </p>
-        </div>
-        <ul className="pro-features">
-          <li>
-            <span className="pro-feat-icon">📄</span>
-            <div><strong>Detailed PDF report</strong><br />Personality profile, strengths breakdown, and a parent summary</div>
-          </li>
-          <li>
-            <span className="pro-feat-icon">🎯</span>
-            <div><strong>Advanced Virtual Counselling</strong><br />Helping you find the right academic institutes for your path</div>
-          </li>
-          <li>
-            <span className="pro-feat-icon">🗺️</span>
-            <div><strong>Career handholding</strong><br />Monthly check-ins, goal tracking, and curated next steps</div>
-          </li>
-          <li>
-            <span className="pro-feat-icon">🎤</span>
-            <div><strong>Expert session invites</strong><br />Live sessions with industry leaders — ask them anything</div>
-          </li>
+      {/* Report card */}
+      <div className="report-card" id="report-card">
+        <p className="report-eyebrow">Your CareerMap Report</p>
+        <h2 className="report-headline">See what your answers actually say about you</h2>
+        <p className="report-sub">
+          A personalised report built from your responses.
+          Specific to your grade, your thinking style, your paths.
+        </p>
+
+        <ul className="report-features">
+          <li><span className="feat-check">✓</span> Your thinking style and how you make decisions — explained in plain language</li>
+          <li><span className="feat-check">✓</span> All 5 career paths per domain — you've only seen 6 of 15 so far</li>
+          <li><span className="feat-check">✓</span> Stream and subject guidance for your grade and goals</li>
+          <li><span className="feat-check">✓</span> Your strengths and areas to develop — drawn from your own answers</li>
+          <li><span className="feat-check">✓</span> 6–8 personalised things to try over the next 3 months</li>
+          <li><span className="feat-check">✓</span> A parent summary — written for them, so you don't have to explain it yourself</li>
+          <li><span className="feat-check">✓</span> A free counsellor call within 48 hours — to help you understand your report</li>
         </ul>
 
-        {submitted ? (
-          <div className="pro-thankyou">
-            <p className="pro-thankyou-title">You're on the list</p>
-            <p className="pro-thankyou-sub">
-              We'll reach out on WhatsApp when Pro launches.<br />Check your email for a confirmation.
-            </p>
+        <div className="counsellor-callout">
+          <span className="callout-icon">📞</span>
+          <div>
+            <strong>Free counsellor call included</strong>
+            <p>A CareerMap counsellor will call within 48 hours to walk you through the report and answer questions.</p>
           </div>
-        ) : (
-          <form className="pro-form" onSubmit={handleProSubmit}>
-            <input
-              className="pro-input"
-              type="text"
-              placeholder="Your name"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              required
-            />
-            <input
-              className="pro-input"
-              type="tel"
-              placeholder="WhatsApp number"
-              value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              required
-            />
-            <input
-              className="pro-input"
-              type="email"
-              placeholder="Email address"
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              required
-            />
-            {formError && <p className="pro-form-error">{formError}</p>}
-            <button className="btn-pro" type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Get early access →'}
-            </button>
-            <p className="pro-card-note">Early access is free. We'll reach out when Pro launches.</p>
-          </form>
-        )}
+        </div>
+
+        <div className="price-row">
+          <span className="price-amount">₹499</span>
+          <span className="price-note">One time. Instant download. Counsellor call included.</span>
+        </div>
+
+        <button className="btn-report" type="button" onClick={() => alert('Payment coming soon — Razorpay integration in progress.')}>
+          Download my CareerMap report
+        </button>
+        <p className="payment-note">Secure payment · PDF to your email instantly</p>
+
+        <p className="urgency-note">Your session expires in 48 hours</p>
+
+        <div className="testimonials">
+          {VALUE_PROPS.map((v, i) => (
+            <div className="testimonial-card" key={i}>
+              <p className="testimonial-text">{v.text}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="report-disclaimer">
+          Stream and course guidance reflects CBSE/ISC 2025 pathways.
+        </p>
       </div>
 
       {/* WhatsApp share */}
       <a
         className="btn-whatsapp"
-        href={`https://wa.me/?text=${encodeURIComponent('Take a look at this virtual career guide. Took me 5 mins and I was quite impressed with the feedback 👉 https://edu-counsellor-production.up.railway.app/')}`}
+        href={`https://wa.me/?text=${encodeURIComponent('Took me 5 mins and the result was surprisingly specific to me. Worth trying if you\'re figuring out careers or streams. It\'s free 👉 https://edu-counsellor-production.up.railway.app/')}`}
         target="_blank"
         rel="noopener noreferrer"
       >
-        Share on WhatsApp
+        Share this — it's free to try →
       </a>
 
       <div className="results-disclaimer">
