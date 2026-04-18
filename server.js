@@ -45,7 +45,10 @@ app.post('/api/veg', async (req, res) => {
       body: JSON.stringify({
         model: 'anthropic/claude-haiku-4-5',
         max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [
+          { role: 'system', content: 'You output only valid JSON. No explanation, no preamble, no markdown. Your entire response must be parseable by JSON.parse().' },
+          { role: 'user', content: prompt },
+        ],
       }),
     });
 
@@ -131,6 +134,104 @@ app.post('/api/waitlist', async (req, res) => {
   }
 
   res.json({ ok: true });
+});
+
+// ── Dev-mode OTP store (used when DATABASE_URL is not set) ───────────────────
+const devOtpStore = new Map(); // email → { code, expires }
+
+// ── Auth: send OTP via Resend ─────────────────────────────────────────────────
+app.post('/api/auth/otp/send', async (req, res) => {
+  const { email } = req.body;
+  if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return res.status(400).json({ error: 'Valid email required' });
+  }
+
+  const normalEmail = email.trim().toLowerCase();
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  // ── Persist code: DB if available, else in-memory dev store ─────────────
+  if (pool) {
+    try {
+      await pool.query(
+        'INSERT INTO otp_codes (email, code, expires_at) VALUES ($1, $2, $3)',
+        [normalEmail, code, expiresAt]
+      );
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  } else {
+    devOtpStore.set(normalEmail, { code, expires: expiresAt.getTime() });
+    console.log(`\n[DEV] OTP for ${normalEmail}: ${code}\n`);
+  }
+
+  // ── Send email via Resend (works with or without DB) ─────────────────────
+  if (resend) {
+    resend.emails.send({
+      from: 'CareerMap <noreply@atrios.in>',
+      to: email.trim(),
+      subject: 'Your CareerMap verification code',
+      html: `
+        <div style="font-family:sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
+          <p style="margin:0 0 8px;font-size:14px;color:#666">CareerMap Report — ₹499</p>
+          <h2 style="margin:0 0 24px;font-size:24px;color:#26215C">Your verification code</h2>
+          <div style="background:#EEEDFE;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
+            <span style="font-size:40px;font-weight:800;letter-spacing:8px;color:#3C3489">${code}</span>
+          </div>
+          <p style="margin:0 0 8px;font-size:14px;color:#555">This code expires in <strong>10 minutes</strong>.</p>
+          <p style="margin:0;font-size:13px;color:#999">If you didn't request this, you can safely ignore this email.</p>
+        </div>`,
+    }).catch((err) => console.error('OTP email error:', err));
+  }
+
+  res.json({ ok: true });
+});
+
+// ── Auth: verify OTP + upsert user ───────────────────────────────────────────
+app.post('/api/auth/otp/verify', async (req, res) => {
+  const { email, code, grade } = req.body;
+  if (!email || !code) return res.status(400).json({ error: 'Missing fields' });
+
+  const normalEmail = email.trim().toLowerCase();
+
+  // ── Dev fallback: no DB → check in-memory store ───────────────────────────
+  if (!pool) {
+    const stored = devOtpStore.get(normalEmail);
+    if (!stored || stored.code !== String(code) || stored.expires < Date.now()) {
+      return res.status(401).json({ error: 'Invalid or expired code. Please try again.' });
+    }
+    devOtpStore.delete(normalEmail);
+    return res.json({ ok: true, userId: `dev-${normalEmail}` });
+  }
+
+  try {
+    // Find valid, unused, unexpired code
+    const { rows } = await pool.query(
+      `SELECT id FROM otp_codes
+       WHERE email = $1 AND code = $2 AND used = false AND expires_at > now()
+       ORDER BY created_at DESC LIMIT 1`,
+      [normalEmail, String(code)]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid or expired code. Please try again.' });
+    }
+
+    // Mark used
+    await pool.query('UPDATE otp_codes SET used = true WHERE id = $1', [rows[0].id]);
+
+    // Upsert user
+    const { rows: userRows } = await pool.query(
+      `INSERT INTO users (email, grade) VALUES ($1, $2)
+       ON CONFLICT (email) DO UPDATE SET grade = EXCLUDED.grade
+       RETURNING id`,
+      [normalEmail, grade || null]
+    );
+
+    res.json({ ok: true, userId: userRows[0].id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Static files (built Vite app) ─────────────────────────────────────────────

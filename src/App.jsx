@@ -6,12 +6,15 @@ import Checkpoint from './components/Checkpoint'
 import Motivations from './components/Motivations'
 import Loading from './components/Loading'
 import Results from './components/Results'
+import SignIn from './components/SignIn'
 import { psychometric, personal, getCognitiveQuestions } from './data/questions'
 import { buildPrompt } from './data/prompt'
 import { callVEG, saveSession } from './utils/api'
 
 export default function App() {
   const [screen, setScreen] = useState('intro')
+  const [showSignIn, setShowSignIn] = useState(false)
+  const [userId, setUserId] = useState(null)
   const [answers, setAnswers] = useState({
     grade: '',
     cognitiveQuestions: [],
@@ -50,11 +53,26 @@ export default function App() {
     })
     setResult(null)
     setSessionId(null)
+    setUserId(null)
     setScreen('intro')
   }
 
   if (screen === 'intro') {
-    return <Intro onStart={() => setScreen('grade')} />
+    return (
+      <>
+        <Intro onStart={() => setShowSignIn(true)} />
+        {showSignIn && (
+          <SignIn
+            onClose={() => setShowSignIn(false)}
+            onVerified={(uid) => {
+              setUserId(uid)
+              setShowSignIn(false)
+              setScreen('grade')
+            }}
+          />
+        )}
+      </>
+    )
   }
 
   if (screen === 'grade') {
@@ -157,7 +175,7 @@ export default function App() {
   }
 
   if (screen === 'results') {
-    return <Results result={result} sessionId={sessionId} grade={answers.grade} onRestart={restart} />
+    return <Results result={result} sessionId={sessionId} grade={answers.grade} userId={userId} onRestart={restart} />
   }
 
   return null

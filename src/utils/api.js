@@ -80,10 +80,15 @@ async function parseVEGResponse(response) {
   const data = await response.json();
   const raw = data.choices?.[0]?.message?.content || '';
   const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    console.error('Model returned non-JSON. Raw output:', raw);
+    throw new Error(`Model returned non-JSON: "${raw.slice(0, 120)}"`);
+  }
 }
 
-export async function callVEG(prompt) {
+export async function callVEG(prompt, attempt = 1) {
   // ── Production: proxy through server (key stays on Railway) ──────────────
   if (import.meta.env.PROD) {
     const response = await fetch('/api/veg', {
@@ -95,7 +100,15 @@ export async function callVEG(prompt) {
       const err = await response.json().catch(() => ({ error: response.statusText }));
       throw new Error(`Server error: ${response.status} — ${err.error}`);
     }
-    return parseVEGResponse(response);
+    try {
+      return await parseVEGResponse(response);
+    } catch (err) {
+      if (attempt < 2) {
+        console.warn('VEG parse failed, retrying...', err.message);
+        return callVEG(prompt, 2);
+      }
+      throw err;
+    }
   }
 
   // ── Development: use VITE_OPENROUTER_KEY from .env.local ─────────────────
@@ -127,5 +140,13 @@ export async function callVEG(prompt) {
     throw new Error(`OpenRouter error: ${response.status} — ${err}`);
   }
 
-  return parseVEGResponse(response);
+  try {
+    return await parseVEGResponse(response);
+  } catch (err) {
+    if (attempt < 2) {
+      console.warn('VEG parse failed, retrying...', err.message);
+      return callVEG(prompt, 2);
+    }
+    throw err;
+  }
 }
