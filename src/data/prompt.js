@@ -100,7 +100,7 @@ Return ONLY this JSON. No markdown. No explanation. No match scores or percentag
     {
       "name": "Broad domain in plain language — not a job title",
       "connection": "1-2 sentences connecting their actual signals to this domain. Use their words.",
-      "paths": ["Specific path 1", "Specific path 2", "Specific path 3", "Specific path 4", "Specific path 5"],
+      "paths": ["Short label only", "Max 4 words", "No dashes or descriptors", "e.g. UX designer", "e.g. Film director"],
       "explore": "One concrete thing they could try, watch, read or experience this week to learn more about this domain"
     }
   ],
@@ -110,6 +110,7 @@ Rules for domains:
 - Exactly 3 domains
 - Each domain should be genuinely distinct — no overlapping clusters
 - paths[] should have exactly 5 specific careers or roles within that domain
+- Each path must be a short label only — maximum 4 words, no dashes, no descriptors, no explanations after the name. Correct: "Historian", "UX designer", "Data scientist". Incorrect: "Historian — studying primary sources", "UX designer who solves problems"
 - explore should be a concrete action, not a vague suggestion
 - No percentages, no match scores, no ranking of domains`;
 }
