@@ -1,5 +1,4 @@
-[phases.setup]
-nixPkgs = ["python311", "python311Packages.pip"]
+providers = ["node", "python"]
 
 [phases.install]
 cmds = ["npm ci", "pip install -r report/requirements.txt"]

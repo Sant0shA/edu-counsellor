@@ -446,6 +446,15 @@ app.post('/api/coupon/redeem', async (req, res) => {
       [join(__dirname, 'report/generate.py'), '--queue-id', String(queueId)],
       { detached: true, stdio: 'ignore', env: { ...process.env } },
     );
+    child.on('error', (err) => {
+      console.error(`[report] spawn failed for queue_id=${queueId}: ${err.message}`);
+      if (pool) {
+        pool.query(
+          "UPDATE report_queue SET status = 'failed', error = $1, updated_at = now() WHERE id = $2",
+          [err.message, queueId],
+        ).catch(() => {});
+      }
+    });
     child.unref();
   }
 
