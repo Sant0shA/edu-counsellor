@@ -48,7 +48,7 @@ def build_system_prompt(ctx: dict) -> str:
     motivation_lines = '\n'.join(f'  - {m}' for m in motivations)
 
     domain_lines = '\n'.join(
-        f'  Domain {i+1}: {d["name"]} — {d.get("connection", "")}'
+        f'  Domain {i+1}: {d["name"]} (category: {d.get("data_category", "")}) — {d.get("connection", "")}'
         for i, d in enumerate(domains)
     )
 

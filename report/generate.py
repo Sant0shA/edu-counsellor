@@ -223,7 +223,7 @@ def build_student_context(grade: str, answers: dict, result: dict, email: str) -
         'personal':     _flatten(answers.get('personal', [])),
         'motivations':  _flatten(answers.get('motivations', [])),
         'cog_score':    cog_score,
-        'market_data':  [get_domain_context(d['name']) for d in domains],
+        'market_data':  [get_domain_context(d.get('data_category') or d['name']) for d in domains],
     }
 
 
