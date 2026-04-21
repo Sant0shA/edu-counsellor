@@ -7,12 +7,12 @@ RUN apt-get update && \
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 COPY report/requirements.txt ./report/
 RUN pip3 install -r report/requirements.txt --break-system-packages
 
 COPY . .
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 
 CMD ["npm", "start"]
