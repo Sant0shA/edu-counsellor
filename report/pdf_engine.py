@@ -71,12 +71,14 @@ def rule():
     return HRFlowable(width='100%', thickness=0.5, color=RULE_LINE, spaceAfter=8, spaceBefore=4)
 
 
-def career_header(text: str, color=CORAL) -> Paragraph:
-    """Coloured section label block."""
-    style = _style('_ch', fontName='Helvetica-Bold', fontSize=12, textColor=white,
-                   backColor=color, leading=17, leftPadding=10, rightPadding=10,
-                   topPadding=6, bottomPadding=6, spaceAfter=10)
-    return Paragraph(text, style)
+def career_header(text: str, color=CORAL) -> list:
+    """Thin purple rule above a sub-section label."""
+    return [
+        sp(12),
+        HRFlowable(width='100%', thickness=0.5, color=HexColor('#7F77DD'), spaceAfter=6),
+        Paragraph(text, _style('_ch', fontName='Helvetica-Bold', fontSize=12,
+                               textColor=color, leading=16, spaceAfter=6)),
+    ]
 
 
 def domain_banner(name: str, number: int) -> list:
@@ -231,8 +233,7 @@ def build_career_section(domain: dict, career_data: dict, internships: list,
     # Why this fits you
     fit = career_data.get('fit_rationale', '')
     if fit:
-        parts += [
-            career_header('Why this fits you', PURPLE),
+        parts += career_header('Why this fits you', PURPLE) + [
             Paragraph(fit, STYLES['body']),
             sp(10),
         ]
@@ -240,7 +241,7 @@ def build_career_section(domain: dict, career_data: dict, internships: list,
     # Paths within this domain
     paths = career_data.get('paths', [])
     if paths:
-        parts.append(career_header('Paths within this domain', PURPLE))
+        parts += career_header('Paths within this domain', PURPLE)
         path_rows = []
         for p in paths[:5]:
             path_rows.append([
@@ -262,8 +263,7 @@ def build_career_section(domain: dict, career_data: dict, internships: list,
     if is_decision_window:
         sg = career_data.get('stream_guidance', '')
         if sg:
-            parts += [
-                career_header('Stream and Subject Guidance', CORAL),
+            parts += career_header('Stream and Subject Guidance', CORAL) + [
                 Paragraph(sg, STYLES['body']),
                 sp(4),
                 Paragraph(
@@ -299,13 +299,10 @@ def build_career_section(domain: dict, career_data: dict, internships: list,
             ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
             ('GRID',          (0, 0), (-1, -1), 0.5, RULE_LINE),
         ]))
-        parts += [
-            career_header(degree_label, PURPLE),
-            KeepTogether([
-                deg_table,
-                sp(4),
-                Paragraph(UG_AMBER_NOTE, STYLES['caption_amber']),
-            ]),
+        parts += career_header(degree_label, PURPLE) + [
+            deg_table,
+            sp(4),
+            Paragraph(UG_AMBER_NOTE, STYLES['caption_amber']),
             sp(10),
         ]
 
@@ -326,8 +323,7 @@ def build_career_section(domain: dict, career_data: dict, internships: list,
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ('GRID',          (0, 0), (-1, -1), 0.5, RULE_LINE),
     ]))
-    parts += [
-        career_header('Market Demand and Salary', PURPLE),
+    parts += career_header('Market Demand and Salary', PURPLE) + [
         KeepTogether([
             Paragraph(market.get('note', ''), STYLES['body_left']),
             sp(4),
@@ -362,13 +358,12 @@ def build_career_section(domain: dict, career_data: dict, internships: list,
             ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
             ('GRID',          (0, 0), (-1, -1), 0.5, RULE_LINE),
         ]))
-        parts += [career_header('Internships to Target', PURPLE), int_table, sp(10)]
+        parts += career_header('Internships to Target', PURPLE) + [int_table, sp(10)]
 
     # Next 30 days (Haiku)
     if next_30:
-        parts += [
+        parts += career_header('Your Next 30 Days', GREEN) + [
             KeepTogether([
-                career_header('Your Next 30 Days', GREEN),
                 colored_box([Paragraph(next_30, STYLES['body_left'])], bg=GREEN_LIGHT),
             ]),
         ]

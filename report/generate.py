@@ -246,16 +246,42 @@ def send_report_email(email: str, pdf_bytes: bytes):
         json={
             'from': 'CareerMap <noreply@atrios.in>',
             'to': email,
-            'subject': 'Your CareerMap Report',
+            'subject': 'Your CareerMap Report is attached',
             'html': (
-                '<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">'
-                '<h2 style="color:#a53600;margin:0 0 12px">Your CareerMap Report is here.</h2>'
-                '<p style="color:#555;line-height:1.6;margin:0 0 12px">'
-                'Your personalised report is attached as a PDF. Read it once without pressure — '
-                'note what resonates and what does not.</p>'
-                '<p style="color:#555;line-height:1.6;margin:0 0 12px">'
-                'A CareerMap counsellor will call within 48 hours to walk you through it.</p>'
-                '<p style="color:#888;font-size:13px;margin:20px 0 0">— The CareerMap team</p>'
+                '<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;color:#1a1a1a">'
+
+                '<p style="margin:0 0 16px;line-height:1.7;color:#333">Hi there,</p>'
+
+                '<p style="margin:0 0 16px;line-height:1.7;color:#333">'
+                'Your personalized CareerMap Report is attached as a PDF.</p>'
+
+                '<p style="margin:0 0 16px;line-height:1.7;color:#333">'
+                'We suggest reading it through once without any pressure&#8202;&#8212;&#8202;simply note what resonates '
+                'with you and what doesn&#8217;t. Since we haven&#8217;t collected your name or phone number to ensure '
+                'your privacy and a spam-free experience, we want you to feel completely in control of your results.</p>'
+
+                '<p style="margin:0 0 6px;font-weight:600;color:#1a1a1a">Take the next step: Guided Journey Mapping</p>'
+                '<p style="margin:0 0 16px;line-height:1.7;color:#333">'
+                'A report is a great start, but the real magic happens when you turn data into a plan. '
+                'If you&#8217;re looking for deeper clarity, our professionals offer a Guided Journey Mapping session. '
+                'This is a personalized conversation designed to help you navigate your unique path and ensure your '
+                'career journey is a success.</p>'
+
+                '<p style="margin:0 0 6px;line-height:1.7;color:#333">'
+                'If you&#8217;d like to explore this guided solution, simply reach out to us:</p>'
+                '<p style="margin:0 0 20px;line-height:1.7;color:#333">'
+                '&#128172; Message us on WhatsApp at <strong>[Number]</strong></p>'
+
+                '<hr style="border:none;border-top:1px solid #e8e8e8;margin:20px 0">'
+
+                '<p style="margin:0 0 6px;font-weight:600;color:#1a1a1a">Help a friend out</p>'
+                '<p style="margin:0 0 24px;line-height:1.7;color:#333">'
+                'If you found this report detailed and helpful, please consider sharing it with your friends or school '
+                'groups. A quick share could help a fellow student choose the right career path and find their own '
+                'direction!</p>'
+
+                '<p style="margin:0;line-height:1.7;color:#333">Best regards,<br>'
+                '<strong>The CareerMap Team</strong></p>'
                 '</div>'
             ),
             'attachments': [

@@ -83,6 +83,8 @@ WRITING RULES:
 - Do not name specific colleges, universities, or entrance exams
 - Do not use percentage match scores or domain rankings
 - Use the student's own words from their signal responses where possible
+- Never mention cognitive question scores, correct/incorrect answers, or any reference to how the student performed on reasoning questions. Do not say they scored low, scored high, or anything about their cognitive performance. Use the cognitive data only to inform the thinking style description without referencing the questions.
+- Do not mention any animal (real or metaphorical) in any section. Do not use complex vocabulary; this report may be read by a 15-year-old. Write as you would speak to a bright teenager: plain words, short sentences, no jargon.
 - Return only valid JSON as specified in each request; no markdown, no extra text"""
 
 
