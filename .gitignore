@@ -23,6 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
 # Local working files
 Feedback/
 *:Zone.Identifier
