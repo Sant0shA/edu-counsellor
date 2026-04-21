@@ -1,6 +1,7 @@
 import express from 'express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { spawn } from 'child_process';
 import pg from 'pg';
 import { Resend } from 'resend';
 
@@ -25,13 +26,16 @@ function escHtml(str) {
 // ── In-memory rate-limit state ────────────────────────────────────────────────
 const otpSendLog    = new Map(); // email → lastSentMs
 const otpAttempts   = new Map(); // email → { count, windowStart }
-const vegRateLog    = new Map(); // ip    → { count, windowStart }
+const vegRateLog          = new Map(); // ip    → { count, windowStart }
+const couponValidateLog   = new Map(); // ip    → { count, windowStart }
 
 const OTP_SEND_COOLDOWN_MS   = 60 * 1000;
 const OTP_ATTEMPT_WINDOW_MS  = 15 * 60 * 1000;
 const OTP_MAX_ATTEMPTS       = 3;
 const VEG_WINDOW_MS          = 60 * 1000;
 const VEG_MAX_PER_WINDOW     = 10;
+const COUPON_WINDOW_MS       = 60 * 1000;
+const COUPON_MAX_PER_WINDOW  = 10;
 
 // ── Postgres + Resend clients ─────────────────────────────────────────────────
 const pool = process.env.DATABASE_URL
@@ -227,7 +231,7 @@ app.post('/api/auth/otp/send', async (req, res) => {
       subject: 'Your CareerMap verification code',
       html: `
         <div style="font-family:sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
-          <p style="margin:0 0 8px;font-size:14px;color:#666">CareerMap Report — ₹499</p>
+          <p style="margin:0 0 8px;font-size:14px;color:#666">CareerMap · Virtual Edu Guide</p>
           <h2 style="margin:0 0 24px;font-size:24px;color:#26215C">Your verification code</h2>
           <div style="background:#EEEDFE;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
             <span style="font-size:40px;font-weight:800;letter-spacing:8px;color:#3C3489">${code}</span>
@@ -300,6 +304,191 @@ app.post('/api/auth/otp/verify', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── Coupon: validate (read-only, does not consume a use) ─────────────────────
+app.post('/api/coupon/validate', async (req, res) => {
+  if (!pool) return res.status(503).json({ valid: false, error: 'DB not configured' });
+
+  // Rate limit by IP: 10 checks per minute
+  const ip = req.ip || 'unknown';
+  const cvEntry = couponValidateLog.get(ip) || { count: 0, windowStart: Date.now() };
+  if (Date.now() - cvEntry.windowStart > COUPON_WINDOW_MS) {
+    cvEntry.count = 0; cvEntry.windowStart = Date.now();
+  }
+  if (++cvEntry.count > COUPON_MAX_PER_WINDOW) {
+    couponValidateLog.set(ip, cvEntry);
+    return res.status(429).json({ valid: false, error: 'Too many attempts. Please wait a minute.' });
+  }
+  couponValidateLog.set(ip, cvEntry);
+
+  const { code, userId } = req.body;
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({ valid: false, error: 'Enter a coupon code.' });
+  }
+
+  const normalCode = code.trim().toUpperCase();
+
+  // Alphanumeric only, max 20 chars
+  if (!/^[A-Z0-9]{1,20}$/.test(normalCode)) {
+    return res.status(400).json({ valid: false, error: 'Invalid coupon code format.' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, type, discount_value
+       FROM coupons
+       WHERE code = $1
+         AND active = true
+         AND uses_count < max_uses
+         AND (expires_at IS NULL OR expires_at > now())`,
+      [normalCode]
+    );
+
+    if (rows.length === 0) {
+      return res.json({ valid: false, error: 'Invalid or expired coupon code.' });
+    }
+
+    // If userId provided, check prior redemption
+    if (userId) {
+      const { rows: used } = await pool.query(
+        'SELECT 1 FROM coupon_redemptions WHERE coupon_id = $1 AND user_id = $2',
+        [rows[0].id, String(userId)]
+      );
+      if (used.length > 0) {
+        return res.json({ valid: false, error: 'This coupon has already been used.' });
+      }
+    }
+
+    res.json({ valid: true, type: rows[0].type, discountValue: rows[0].discount_value, code: normalCode });
+  } catch (err) {
+    res.status(500).json({ valid: false, error: err.message });
+  }
+});
+
+// ── Coupon: redeem (consumes a use, triggers report delivery) ─────────────────
+app.post('/api/coupon/redeem', async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'DB not configured' });
+
+  const { code, userId, sessionId, email } = req.body;
+  if (!code || !userId || !email) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  const normalCode = code.trim().toUpperCase();
+  if (!/^[A-Z0-9]{1,20}$/.test(normalCode)) {
+    return res.status(400).json({ error: 'Invalid coupon code format.' });
+  }
+
+  const client = await pool.connect();
+  let queueId = null;
+
+  try {
+    await client.query('BEGIN');
+
+    // Re-validate inside transaction (race-safe)
+    const { rows } = await client.query(
+      `SELECT id, type FROM coupons
+       WHERE code = $1 AND active = true
+         AND uses_count < max_uses
+         AND (expires_at IS NULL OR expires_at > now())
+       FOR UPDATE`,
+      [normalCode]
+    );
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Coupon no longer valid.' });
+    }
+
+    const couponId = rows[0].id;
+
+    // Check not already redeemed by this user
+    const { rows: alreadyUsed } = await client.query(
+      'SELECT 1 FROM coupon_redemptions WHERE coupon_id = $1 AND user_id = $2',
+      [couponId, String(userId)]
+    );
+    if (alreadyUsed.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'This coupon has already been used.' });
+    }
+
+    // Increment uses_count
+    await client.query('UPDATE coupons SET uses_count = uses_count + 1 WHERE id = $1', [couponId]);
+
+    // Record redemption
+    await client.query(
+      'INSERT INTO coupon_redemptions (coupon_id, user_id, session_id) VALUES ($1, $2, $3)',
+      [couponId, String(userId), sessionId || null]
+    );
+
+    // Create report queue entry (table added in Item 3 — fails silently until then)
+    try {
+      const { rows: qRows } = await client.query(
+        `INSERT INTO report_queue (session_id, user_id, email, status)
+         VALUES ($1, $2, $3, 'pending') RETURNING id`,
+        [sessionId || null, String(userId), email]
+      );
+      queueId = qRows[0].id;
+    } catch (_) { /* report_queue table not yet created */ }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+
+  // Spawn PDF generator — fire-and-forget (only if queue row was created)
+  if (queueId != null) {
+    const child = spawn(
+      'python3',
+      [join(__dirname, 'report/generate.py'), '--queue-id', String(queueId)],
+      { detached: true, stdio: 'ignore', env: { ...process.env } },
+    );
+    child.unref();
+  }
+
+  // Send emails — non-blocking
+  if (resend) {
+    const safeEmail   = escHtml(email);
+    const safeCode    = escHtml(normalCode);
+    const safeUserId  = escHtml(String(userId));
+    const safeSession = escHtml(sessionId ? String(sessionId) : '—');
+
+    resend.emails.send({
+      from: 'CareerMap <noreply@atrios.in>',
+      to: email,
+      subject: 'Your CareerMap Report is confirmed',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
+          <h2 style="margin:0 0 8px;color:#3C3489">Your report is confirmed.</h2>
+          <p style="margin:0 0 16px;color:#555">
+            We've received your request. Your personalised CareerMap Report will be sent
+            to <strong>${safeEmail}</strong> within 24 hours.
+          </p>
+          <p style="margin:0 0 16px;color:#555">
+            A counsellor will also call within 48 hours to walk you through your results.
+          </p>
+          <p style="margin:24px 0 0;color:#888;font-size:13px">— The CareerMap team</p>
+        </div>`,
+    }).catch((err) => console.error('Coupon redeem user email error:', err));
+
+    const adminEmail = process.env.ADMIN_EMAIL || 'santosh.abraham@atrios.in';
+    resend.emails.send({
+      from: 'CareerMap <noreply@atrios.in>',
+      to: adminEmail,
+      subject: `Report request: coupon ${safeCode}`,
+      html: `
+        <p><strong>Email:</strong> ${safeEmail}</p>
+        <p><strong>User ID:</strong> ${safeUserId}</p>
+        <p><strong>Session ID:</strong> ${safeSession}</p>
+        <p><strong>Coupon:</strong> ${safeCode}</p>
+        <p><strong>Queue ID:</strong> ${queueId ?? '—'}</p>`,
+    }).catch((err) => console.error('Coupon redeem admin email error:', err));
+  }
+
+  res.json({ ok: true });
 });
 
 // ── Static files (built Vite app) ─────────────────────────────────────────────

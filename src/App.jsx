@@ -15,6 +15,7 @@ export default function App() {
   const [screen, setScreen] = useState('intro')
   const [showSignIn, setShowSignIn] = useState(false)
   const [userId, setUserId] = useState(null)
+  const [userEmail, setUserEmail] = useState(null)
   const [answers, setAnswers] = useState({
     grade: '',
     cognitiveQuestions: [],
@@ -54,6 +55,7 @@ export default function App() {
     setResult(null)
     setSessionId(null)
     setUserId(null)
+    setUserEmail(null)
     setScreen('intro')
   }
 
@@ -64,8 +66,9 @@ export default function App() {
         {showSignIn && (
           <SignIn
             onClose={() => setShowSignIn(false)}
-            onVerified={(uid) => {
+            onVerified={(uid, email) => {
               setUserId(uid)
+              setUserEmail(email)
               setShowSignIn(false)
               setScreen('grade')
             }}
@@ -175,7 +178,7 @@ export default function App() {
   }
 
   if (screen === 'results') {
-    return <Results result={result} sessionId={sessionId} grade={answers.grade} userId={userId} onRestart={restart} />
+    return <Results result={result} sessionId={sessionId} grade={answers.grade} userId={userId} userEmail={userEmail} onRestart={restart} />
   }
 
   return null

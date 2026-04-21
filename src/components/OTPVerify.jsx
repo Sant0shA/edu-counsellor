@@ -59,7 +59,7 @@ export default function OTPVerify({ email, onVerified, onBack }) {
         throw new Error(data.error || 'Invalid or expired code');
       }
       const data = await res.json();
-      onVerified(data.userId);
+      onVerified(data.userId, email);
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
       setDigits(Array(OTP_LENGTH).fill(''));

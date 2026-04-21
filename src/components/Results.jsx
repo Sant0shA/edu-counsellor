@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 const GRADE_LABELS = {
   'Class 8 or below': 'Early Explorer',
   'Class 9': 'Early Explorer',
@@ -20,7 +22,22 @@ const VALUE_PROPS = [
   },
 ];
 
-export default function Results({ result, sessionId, grade, userId, onRestart }) {
+export default function Results({ result, sessionId, grade, userId, userEmail, onRestart }) {
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const [redeemSuccess, setRedeemSuccess] = useState(false);
+
+  const BASE_PRICE = 499;
+  const effectivePrice = !appliedCoupon ? BASE_PRICE
+    : appliedCoupon.type === 'free'  ? 0
+    : appliedCoupon.type === 'flat'  ? Math.max(0, BASE_PRICE - appliedCoupon.discountValue)
+    : Math.round(BASE_PRICE * (1 - appliedCoupon.discountValue / 100));
+  const isFree = effectivePrice === 0;
+
   if (!result) return (
     <div className="screen" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:'32px',textAlign:'center'}}>
       <p style={{color:'#a53600',fontWeight:600,marginBottom:8}}>Something went wrong</p>
@@ -30,6 +47,57 @@ export default function Results({ result, sessionId, grade, userId, onRestart })
 
   const { headline, observation, question, domains = [] } = result;
   const gradeLabel = GRADE_LABELS[grade] || null;
+
+  async function handleApplyCoupon() {
+    const trimmed = couponInput.trim();
+    if (!trimmed) { setCouponError('Enter a coupon code.'); return; }
+    setCouponError('');
+    setCouponLoading(true);
+    try {
+      const res = await fetch('/api/coupon/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: trimmed, userId: userId || '' }),
+      });
+      const data = await res.json();
+      if (!data.valid) {
+        setCouponError(data.error || 'Invalid coupon code.');
+        setAppliedCoupon(null);
+      } else {
+        setAppliedCoupon({ code: data.code, type: data.type, discountValue: data.discountValue });
+        setCouponError('');
+      }
+    } catch {
+      setCouponError('Could not apply coupon. Please try again.');
+    }
+    setCouponLoading(false);
+  }
+
+  async function handleFreeCouponRedeem() {
+    if (!appliedCoupon || !isFree) return;
+    setRedeemLoading(true);
+    try {
+      const res = await fetch('/api/coupon/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: appliedCoupon.code,
+          userId: userId || '',
+          sessionId: sessionId || null,
+          email: userEmail || '',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setCouponError(data.error || 'Could not redeem coupon. Please try again.');
+      } else {
+        setRedeemSuccess(true);
+      }
+    } catch {
+      setCouponError('Something went wrong. Please try again.');
+    }
+    setRedeemLoading(false);
+  }
 
   return (
     <div className="screen results-screen">
@@ -122,14 +190,87 @@ export default function Results({ result, sessionId, grade, userId, onRestart })
         </div>
 
         <div className="price-row">
-          <span className="price-amount">₹499</span>
-          <span className="price-note">One time. Instant download. Counsellor call included.</span>
+          {appliedCoupon ? (
+            <>
+              <span className="price-amount" style={{ textDecoration: 'line-through', opacity: 0.4, fontSize: '20px' }}>₹{BASE_PRICE}</span>
+              <span className="price-amount" style={{ color: isFree ? '#1D9E75' : 'var(--report-purple-text)' }}>
+                {isFree ? 'FREE' : `₹${effectivePrice}`}
+              </span>
+            </>
+          ) : (
+            <span className="price-amount">₹{BASE_PRICE}</span>
+          )}
+          <span className="price-note">One time. Counsellor call included.</span>
         </div>
 
-        <button className="btn-report" type="button" onClick={() => alert('Payment coming soon — Razorpay integration in progress.')}>
-          Download my CareerMap report
-        </button>
-        <p className="payment-note">Secure payment · PDF to your email instantly</p>
+        {!redeemSuccess && (
+          <div style={{ marginBottom: '16px' }}>
+            {!couponOpen ? (
+              <button
+                type="button"
+                onClick={() => setCouponOpen(true)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--text-muted)', textDecoration: 'underline', padding: 0, display: 'block', marginBottom: '12px' }}
+              >
+                Have a coupon code?
+              </button>
+            ) : (
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    className="coupon-input"
+                    type="text"
+                    placeholder="Enter coupon code"
+                    value={couponInput}
+                    onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); setAppliedCoupon(null); }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                    disabled={couponLoading}
+                    style={{ borderColor: appliedCoupon ? '#1D9E75' : couponError ? '#cc4400' : undefined }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponInput.trim()}
+                    className="coupon-apply-btn"
+                  >
+                    {couponLoading ? '…' : appliedCoupon ? '✓' : 'Apply'}
+                  </button>
+                </div>
+                {couponError && <p className="coupon-error-text">{couponError}</p>}
+                {appliedCoupon && (
+                  <p className="coupon-success-text">
+                    {appliedCoupon.type === 'free' ? 'Coupon applied — your report is free!'
+                      : appliedCoupon.type === 'percent' ? `${appliedCoupon.discountValue}% off applied`
+                      : `₹${appliedCoupon.discountValue} off applied`}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {redeemSuccess ? (
+          <div className="coupon-success-card">
+            <p style={{ fontSize: '22px', marginBottom: '8px' }}>✓</p>
+            <p style={{ fontWeight: 700, color: 'var(--report-green-text)', marginBottom: '6px', fontSize: '15px' }}>Your report is confirmed</p>
+            <p style={{ fontSize: '13px', color: 'var(--report-green-text)', lineHeight: 1.6 }}>
+              We'll send your CareerMap Report to your email within 24 hours.
+              A counsellor will call within 48 hours to walk you through it.
+            </p>
+          </div>
+        ) : (
+          <button
+            className="btn-report"
+            type="button"
+            disabled={redeemLoading}
+            onClick={isFree ? handleFreeCouponRedeem : () => alert('Payment coming soon — Razorpay integration in progress.')}
+          >
+            {redeemLoading ? 'Confirming…' : isFree ? 'Get my free CareerMap report' : 'Download my CareerMap report'}
+          </button>
+        )}
+
+        <p className="payment-note">
+          {isFree ? 'Report sent to your email within 24 hours' : 'Secure payment · PDF to your email instantly'}
+        </p>
 
         <p className="urgency-note">Your session expires in 48 hours</p>
 
