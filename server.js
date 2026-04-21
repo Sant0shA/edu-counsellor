@@ -468,18 +468,20 @@ app.post('/api/coupon/redeem', async (req, res) => {
     resend.emails.send({
       from: 'CareerMap <noreply@atrios.in>',
       to: email,
-      subject: 'Your CareerMap Report is confirmed',
+      subject: 'Request Confirmed | Your CareerMap Report',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
-          <h2 style="margin:0 0 8px;color:#3C3489">Your report is confirmed.</h2>
-          <p style="margin:0 0 16px;color:#555">
-            We've received your request. Your personalised CareerMap Report will be sent
+          <h2 style="margin:0 0 16px;color:#3C3489">Your request is confirmed!</h2>
+          <p style="margin:0 0 16px;color:#555;line-height:1.6">
+            We are currently preparing your personalized CareerMap Report, which will be sent
             to <strong>${safeEmail}</strong> within 24 hours.
           </p>
-          <p style="margin:0 0 16px;color:#555">
-            A counsellor will also call within 48 hours to walk you through your results.
+          <p style="margin:0 0 16px;color:#555;line-height:1.6">
+            To respect your privacy, we have not collected your name or phone number,
+            as we have no intention of spamming you. We hope this report provides
+            the detail and clarity you are looking for.
           </p>
-          <p style="margin:24px 0 0;color:#888;font-size:13px">— The CareerMap team</p>
+          <p style="margin:24px 0 0;color:#888;font-size:13px">Regards<br>The CareerMap Team</p>
         </div>`,
     }).catch((err) => console.error('Coupon redeem user email error:', err));
 
