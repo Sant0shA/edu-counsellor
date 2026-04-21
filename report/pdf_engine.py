@@ -1,496 +1,672 @@
-"""ReportLab PDF renderer for CareerMap reports."""
+"""ReportLab PDF renderer for CareerMap reports — visual layer from reference design."""
 
 import io
-from datetime import date
 
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
     KeepTogether, PageBreak, HRFlowable,
 )
+from reportlab.platypus.flowables import Flowable
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.colors import HexColor, white, black
-from reportlab.lib.units import inch, cm
+from reportlab.lib.colors import HexColor, white
+from reportlab.lib.units import mm
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 
-from education_context import SALARY_DISCLAIMER, UG_AMBER_NOTE, COUNSELLOR_CALLOUT
+from education_context import SALARY_DISCLAIMER, COUNSELLOR_CALLOUT
 
-# ── Brand colours ──────────────────────────────────────────────────────────────
-CORAL       = HexColor('#a53600')
-CORAL_LIGHT = HexColor('#FFF8F5')
-PURPLE      = HexColor('#3C3489')
-PURPLE_LIGHT= HexColor('#F7F4FF')
-GREEN       = HexColor('#1D9E75')
-GREEN_LIGHT = HexColor('#F0FAF6')
-AMBER_LIGHT = HexColor('#FFFBF0')
-AMBER_BORDER= HexColor('#E8A900')
-DARK        = HexColor('#1a1a1a')
-MUTED       = HexColor('#555555')
-RULE_LINE   = HexColor('#E8DDD8')
-TABLE_HEADER= HexColor('#F5F0EE')
+# ── Page dimensions ─────────────────────────────────────────────────────────────
+W_PAGE, H_PAGE = A4
+FULL_W = 170 * mm          # usable width at 20 mm margins
 
-# ── Shared styles ──────────────────────────────────────────────────────────────
-def _style(name, **kwargs):
-    defaults = dict(fontName='Helvetica', fontSize=11, textColor=DARK, leading=16, spaceAfter=0)
-    defaults.update(kwargs)
-    return ParagraphStyle(name, **defaults)
+# ── Brand colours ────────────────────────────────────────────────────────────────
+C_PURPLE        = HexColor('#3C3489')
+C_PURPLE_LIGHT  = HexColor('#EEEDFE')
+C_PURPLE_TEXT   = HexColor('#26215C')
+C_PURPLE_BORDER = HexColor('#7F77DD')
+C_GREEN         = HexColor('#1D9E75')
+C_GREEN_BG      = HexColor('#E1F5EE')
+C_GREEN_BORDER  = HexColor('#9FE1CB')
+C_GREEN_TEXT    = HexColor('#085041')
+C_AMBER_BG      = HexColor('#FAEEDA')
+C_AMBER_TEXT    = HexColor('#633806')
+C_MUTED         = HexColor('#6B7280')
+C_BODY          = HexColor('#1F1F2E')
+C_RULE          = HexColor('#E5E7EB')
+C_WHITE         = white
+C_URGENCY_BG    = HexColor('#FFF4F4')
+C_URGENCY_BORDER= HexColor('#F9BCBC')
+C_URGENCY_TEXT  = HexColor('#8B1A1A')
 
-STYLES = {
-    'cover_title':   _style('cover_title',   fontName='Helvetica-Bold', fontSize=28, textColor=CORAL,  leading=34, spaceAfter=8, alignment=TA_CENTER),
-    'cover_sub':     _style('cover_sub',     fontName='Helvetica',      fontSize=14, textColor=MUTED,  leading=20, spaceAfter=4, alignment=TA_CENTER),
-    'cover_email':   _style('cover_email',   fontName='Helvetica-Bold', fontSize=13, textColor=DARK,   leading=18, alignment=TA_CENTER),
-    'cover_date':    _style('cover_date',    fontName='Helvetica',      fontSize=11, textColor=MUTED,  leading=16, alignment=TA_CENTER),
-    'h1':            _style('h1',            fontName='Helvetica-Bold', fontSize=18, textColor=CORAL,  leading=24, spaceAfter=6),
-    'h2':            _style('h2',            fontName='Helvetica-Bold', fontSize=14, textColor=PURPLE, leading=20, spaceAfter=4),
-    'h3':            _style('h3',            fontName='Helvetica-Bold', fontSize=12, textColor=DARK,   leading=17, spaceAfter=3),
-    'body':          _style('body',          fontName='Helvetica',      fontSize=11, textColor=DARK,   leading=17, spaceAfter=6, alignment=TA_JUSTIFY),
-    'body_left':     _style('body_left',     fontName='Helvetica',      fontSize=11, textColor=DARK,   leading=17, spaceAfter=6),
-    'bullet':        _style('bullet',        fontName='Helvetica',      fontSize=11, textColor=DARK,   leading=17, spaceAfter=4, leftIndent=16, bulletIndent=0),
-    'caption':       _style('caption',       fontName='Helvetica',      fontSize=9,  textColor=MUTED,  leading=13, spaceAfter=4, alignment=TA_JUSTIFY),
-    'caption_amber': _style('caption_amber', fontName='Helvetica',      fontSize=9,  textColor=HexColor('#7A5A00'), leading=13, spaceAfter=4, alignment=TA_JUSTIFY),
-    'callout':       _style('callout',       fontName='Helvetica',      fontSize=11, textColor=HexColor('#145C44'), leading=16, spaceAfter=4, alignment=TA_JUSTIFY),
-    'callout_bold':  _style('callout_bold',  fontName='Helvetica-Bold', fontSize=11, textColor=HexColor('#145C44'), leading=16),
-    'section_label': _style('section_label', fontName='Helvetica',      fontSize=9,  textColor=MUTED,  leading=12, spaceAfter=2),
-    'path_name':     _style('path_name',     fontName='Helvetica-Bold', fontSize=11, textColor=PURPLE, leading=15),
-    'path_desc':     _style('path_desc',     fontName='Helvetica',      fontSize=10, textColor=MUTED,  leading=14),
-    'tag_text':      _style('tag_text',      fontName='Helvetica-Bold', fontSize=9,  textColor=white,  leading=12, alignment=TA_CENTER),
-    'table_header':  _style('table_header',  fontName='Helvetica-Bold', fontSize=10, textColor=DARK,   leading=14),
-    'table_body':    _style('table_body',    fontName='Helvetica',      fontSize=10, textColor=DARK,   leading=14),
+# ── Styles ───────────────────────────────────────────────────────────────────────
+def _s(name, **kw):
+    return ParagraphStyle(name, **kw)
+
+S = {
+    'section_label': _s('sl',  fontName='Helvetica-Bold',
+        fontSize=8,  textColor=C_PURPLE,      leading=10,  spaceAfter=5,  letterSpacing=0.8),
+    'h1':  _s('h1',  fontName='Helvetica-Bold',
+        fontSize=19, textColor=C_PURPLE_TEXT,  leading=24,  spaceAfter=4),
+    'h2':  _s('h2',  fontName='Helvetica-Bold',
+        fontSize=13, textColor=C_PURPLE_TEXT,  leading=17,  spaceAfter=3,  spaceBefore=8),
+    'h3':  _s('h3',  fontName='Helvetica-Bold',
+        fontSize=10, textColor=C_PURPLE_TEXT,  leading=14,  spaceAfter=3,  spaceBefore=6),
+    'career_h3': _s('ch3', fontName='Helvetica-Bold',
+        fontSize=12, textColor=C_PURPLE,       leading=16,  spaceAfter=6,  spaceBefore=2),
+    'body': _s('body', fontName='Helvetica',
+        fontSize=10, textColor=C_BODY,         leading=15,  spaceAfter=5),
+    'body_muted': _s('bm', fontName='Helvetica',
+        fontSize=9,  textColor=C_MUTED,        leading=13,  spaceAfter=4),
+    'bold': _s('bold', fontName='Helvetica-Bold',
+        fontSize=10, textColor=C_PURPLE_TEXT,  leading=15,  spaceAfter=2),
+    'small_muted': _s('sm', fontName='Helvetica',
+        fontSize=8,  textColor=C_MUTED,        leading=11),
+    'urgency': _s('urg', fontName='Helvetica-Bold',
+        fontSize=9,  textColor=C_URGENCY_TEXT, leading=13),
+    'role_title': _s('rt', fontName='Helvetica-Bold',
+        fontSize=10, textColor=C_PURPLE_TEXT,  leading=14,  spaceAfter=1),
+    'role_desc': _s('rd', fontName='Helvetica',
+        fontSize=9,  textColor=C_MUTED,        leading=13,  spaceAfter=8),
+    'ug_title': _s('ut', fontName='Helvetica-Bold',
+        fontSize=9.5, textColor=C_PURPLE_TEXT, leading=13,  spaceAfter=1),
+    'ug_note': _s('un', fontName='Helvetica',
+        fontSize=8.5, textColor=C_MUTED,       leading=12,  spaceAfter=6),
+    'cover_logo':    _s('clo', fontName='Helvetica-Bold',
+        fontSize=15, textColor=C_WHITE,        leading=20,  spaceAfter=3),
+    'cover_tagline': _s('cta', fontName='Helvetica',
+        fontSize=9,  textColor=HexColor('#A89FF5'), leading=13),
+    'cover_name':    _s('cn',  fontName='Helvetica-Bold',
+        fontSize=27, textColor=C_WHITE,        leading=33,  spaceAfter=6),
+    'cover_grade':   _s('cg',  fontName='Helvetica',
+        fontSize=13, textColor=HexColor('#C7C4F0'), leading=18),
+    'cover_label':   _s('cl',  fontName='Helvetica-Bold',
+        fontSize=8,  textColor=HexColor('#A89FF5'), leading=12,
+        spaceAfter=2, spaceBefore=14),
+    'cover_val':     _s('cv',  fontName='Helvetica',
+        fontSize=11, textColor=C_WHITE,        leading=15),
 }
 
-W = inch * 6.5  # usable width at 1" margins on A4
+
+# ── Custom flowables ──────────────────────────────────────────────────────────────
+class DemandBar(Flowable):
+    def __init__(self, pct, width=FULL_W):
+        super().__init__()
+        self.pct, self.bar_w = pct, width
+
+    def wrap(self, aw, ah): return self.bar_w, 10
+
+    def draw(self):
+        c = self.canv
+        c.setFillColor(HexColor('#F3F4F6'))
+        c.roundRect(0, 2, self.bar_w, 6, 3, fill=1, stroke=0)
+        c.setFillColor(C_PURPLE)
+        c.roundRect(0, 2, self.bar_w * self.pct / 100, 6, 3, fill=1, stroke=0)
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+class CounsellorNudge(Flowable):
+    def __init__(self, width=FULL_W):
+        super().__init__()
+        self.nudge_w = width
 
+    def wrap(self, aw, ah): return self.nudge_w, 22
+
+    def draw(self):
+        c = self.canv
+        c.setStrokeColor(C_RULE); c.setLineWidth(0.5)
+        c.line(0, 20, self.nudge_w, 20)
+        c.setFillColor(C_GREEN); c.circle(6, 9, 3.5, fill=1, stroke=0)
+        c.setFont('Helvetica', 8.5); c.setFillColor(C_MUTED)
+        c.drawString(16, 6, 'Have questions about this career section?')
+        c.setFillColor(C_GREEN)
+        lx = self.nudge_w - 62
+        c.drawString(lx, 6, 'WhatsApp us')
+        c.setStrokeColor(C_GREEN); c.setLineWidth(0.5)
+        tw = c.stringWidth('WhatsApp us', 'Helvetica', 8.5)
+        c.line(lx, 4.5, lx + tw, 4.5)
+
+
+# ── Page templates ────────────────────────────────────────────────────────────────
+def _make_first_page(headline, stage_note):
+    def first_page(canvas, doc):
+        canvas.saveState()
+        canvas.setFillColor(C_PURPLE)
+        canvas.rect(0, 0, W_PAGE, H_PAGE, fill=1, stroke=0)
+        canvas.setFillColor(HexColor('#4A44A0'))
+        canvas.circle(W_PAGE - 28*mm, H_PAGE - 38*mm, 58*mm, fill=1, stroke=0)
+        canvas.setFillColor(HexColor('#5550B0'))
+        canvas.circle(W_PAGE - 8*mm, H_PAGE - 78*mm, 28*mm, fill=1, stroke=0)
+        canvas.setFillColor(HexColor('#302A80'))
+        canvas.circle(30*mm, 30*mm, 42*mm, fill=1, stroke=0)
+        if stage_note:
+            canvas.setFillColor(HexColor('#8B1A1A'))
+            canvas.rect(0, 12*mm, W_PAGE, 8*mm, fill=1, stroke=0)
+            canvas.setFont('Helvetica-Bold', 8.5)
+            canvas.setFillColor(HexColor('#FFCCCC'))
+            canvas.drawCentredString(W_PAGE / 2, 14.8*mm,
+                f'DECISION WINDOW  —  {stage_note}')
+        canvas.restoreState()
+    return first_page
+
+
+def _make_later_pages(headline):
+    def later_pages(canvas, doc):
+        canvas.saveState()
+        canvas.setFillColor(C_PURPLE)
+        canvas.rect(0, H_PAGE - 10*mm, W_PAGE, 10*mm, fill=1, stroke=0)
+        canvas.setFont('Helvetica-Bold', 8)
+        canvas.setFillColor(HexColor('#C7C4F0'))
+        canvas.drawString(20*mm, H_PAGE - 6.5*mm, 'CareerMap')
+        canvas.setFont('Helvetica', 8)
+        canvas.drawRightString(W_PAGE - 20*mm, H_PAGE - 6.5*mm, headline)
+        canvas.setFillColor(HexColor('#F3F4F6'))
+        canvas.rect(0, 0, W_PAGE, 8*mm, fill=1, stroke=0)
+        canvas.setFont('Helvetica', 7.5); canvas.setFillColor(C_MUTED)
+        canvas.drawCentredString(W_PAGE / 2, 3*mm,
+            f'Page {doc.page}  ·  Confidential — for student use only  ·  CareerMap 2025')
+        canvas.restoreState()
+    return later_pages
+
+
+# ── Helper primitives ─────────────────────────────────────────────────────────────
 def sp(pts=6):
     return Spacer(1, pts)
 
 
-def rule():
-    return HRFlowable(width='100%', thickness=0.5, color=RULE_LINE, spaceAfter=8, spaceBefore=4)
+def section_divider(items, label):
+    items.append(sp(4))
+    items.append(HRFlowable(width='100%', thickness=0.5, color=C_RULE, spaceAfter=5))
+    items.append(Paragraph(label.upper(), S['section_label']))
 
 
-def career_header(text: str, color=CORAL) -> list:
+def career_header(label):
     """Thin purple rule above a sub-section label."""
     return [
         sp(12),
-        HRFlowable(width='100%', thickness=0.5, color=HexColor('#7F77DD'), spaceAfter=6),
-        Paragraph(text, _style('_ch', fontName='Helvetica-Bold', fontSize=12,
-                               textColor=color, leading=16, spaceAfter=6)),
+        HRFlowable(width='100%', thickness=0.5, color=C_PURPLE_BORDER, spaceAfter=6),
+        Paragraph(label, S['career_h3']),
     ]
 
 
-def domain_banner(name: str, number: int) -> list:
-    """Large coloured domain title block."""
-    label_style = _style('_dl', fontName='Helvetica', fontSize=10, textColor=white,
-                         backColor=CORAL, leading=14, alignment=TA_CENTER,
-                         leftPadding=8, rightPadding=8, topPadding=4, bottomPadding=0)
-    name_style = _style('_dn', fontName='Helvetica-Bold', fontSize=20, textColor=white,
-                        backColor=CORAL, leading=26, alignment=TA_CENTER,
-                        leftPadding=12, rightPadding=12, topPadding=0, bottomPadding=10)
-    return [
-        Paragraph(f'Domain {number}', label_style),
-        Paragraph(name, name_style),
+def callout_box(story, title, body,
+                bg=C_GREEN_BG, border=C_GREEN_BORDER, text_color=C_GREEN_TEXT):
+    ts = ParagraphStyle('ct', fontName='Helvetica-Bold', fontSize=10,
+        textColor=text_color, leading=14, spaceAfter=3)
+    bs = ParagraphStyle('cb', fontName='Helvetica', fontSize=9,
+        textColor=text_color, leading=13)
+    t = Table([[Paragraph(title, ts)], [Paragraph(body, bs)]], colWidths=[FULL_W])
+    t.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), bg),
+        ('BOX',           (0, 0), (-1, -1), 0.8, border),
+        ('TOPPADDING',    (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 12),
+    ]))
+    story.append(t)
+    story.append(sp(8))
+
+
+def urgency_box(story, text):
+    t = Table([[Paragraph(text, S['urgency'])]], colWidths=[FULL_W])
+    t.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), C_URGENCY_BG),
+        ('BOX',           (0, 0), (-1, -1), 0.8, C_URGENCY_BORDER),
+        ('TOPPADDING',    (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 12),
+    ]))
+    story.append(t)
+    story.append(sp(8))
+
+
+def amber_note(items, text):
+    ds = ParagraphStyle('da', fontName='Helvetica', fontSize=8,
+        textColor=C_AMBER_TEXT, leading=11)
+    t = Table([[Paragraph(text, ds)]], colWidths=[FULL_W])
+    t.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), C_AMBER_BG),
+        ('BOX',           (0, 0), (-1, -1), 0.5, HexColor('#E8C97A')),
+        ('TOPPADDING',    (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 10),
+    ]))
+    items.append(t)
+    items.append(sp(6))
+
+
+def _demand_pct(demand_text: str) -> int:
+    t = demand_text.lower()
+    if 'very high' in t: return 90
+    if 'high' in t:      return 78
+    if 'growing' in t:   return 65
+    if 'moderate' in t:  return 55
+    return 50
+
+
+# ── Career block builders ─────────────────────────────────────────────────────────
+# Rule: KeepTogether only on the salary table block and the 30-day box + counsellor nudge.
+# All text sections (paths, stream guidance, degrees, internships) flow freely.
+
+def _block_fit(domain, career_data, section_label):
+    items = []
+    section_divider(items, section_label)
+    items.append(Paragraph(domain['name'], S['h1']))
+    items.append(sp(6))
+    items.append(Paragraph('Why this fits you', S['h3']))
+    fit = career_data.get('fit_rationale', '')
+    if fit:
+        items.append(Paragraph(fit, S['body']))
+    return items
+
+
+def _block_paths(career_data):
+    paths = career_data.get('paths', [])
+    if not paths:
+        return []
+    items = career_header('Paths within this domain')
+    for p in paths[:6]:
+        items.append(Paragraph(f'&#8250;  {p["name"]}', S['role_title']))
+        items.append(Paragraph(p.get('description', ''), S['role_desc']))
+    return items
+
+
+def _block_stream(career_data):
+    sg = career_data.get('stream_guidance') or ''
+    if not sg:
+        return []
+    items = career_header('Stream and subject guidance')
+    items.append(Paragraph(sg, S['body']))
+    return items
+
+
+def _block_degrees(career_data, is_undergrad):
+    key = 'postgrad_degrees' if is_undergrad else 'ug_degrees'
+    degrees = career_data.get(key, [])
+    if not degrees:
+        return []
+    label = 'Postgraduate degrees to consider' if is_undergrad else 'Undergraduate degrees to consider'
+    items = career_header(label)
+    for d in degrees[:6]:
+        items.append(Paragraph(f'&#8250;  {d["name"]}', S['ug_title']))
+        note = d.get('note', '')
+        if note:
+            items.append(Paragraph(note, S['ug_note']))
+    amber_note(items,
+        'Guidance reflects general pathways across boards. '
+        'Your counsellor will personalise this for your specific board, '
+        'location and current subjects on the call.')
+    return items
+
+
+def _block_market(market):
+    header = career_header('Market demand and salary')
+
+    hs    = ParagraphStyle('dh', fontName='Helvetica-Bold', fontSize=8, textColor=C_MUTED, leading=11)
+    dl_s  = ParagraphStyle('dl', fontName='Helvetica',      fontSize=8, textColor=C_MUTED, leading=11)
+    sal_s = ParagraphStyle('ss', fontName='Helvetica-Bold', fontSize=8, textColor=C_MUTED, leading=11)
+    sal_v = ParagraphStyle('sv', fontName='Helvetica-Bold', fontSize=12, textColor=C_PURPLE_TEXT, leading=15)
+
+    visual = [
+        Paragraph('DEMAND', hs),
+        sp(3),
+        DemandBar(_demand_pct(market.get('demand', '')), width=FULL_W),
+        sp(4),
+        Paragraph(market.get('demand', ''), dl_s),
         sp(10),
     ]
 
-
-def colored_box(content_flowables: list, bg=PURPLE_LIGHT, padding=10) -> Table:
-    """Wraps flowables in a coloured background box via single-cell Table."""
-    inner = Table([[content_flowables]], colWidths=[W - padding * 2])
-    inner.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), bg),
-        ('LEFTPADDING',  (0, 0), (-1, -1), padding),
-        ('RIGHTPADDING', (0, 0), (-1, -1), padding),
-        ('TOPPADDING',   (0, 0), (-1, -1), padding),
-        ('BOTTOMPADDING',(0, 0), (-1, -1), padding),
-        ('ROUNDEDCORNERS', (0, 0), (-1, -1), 6),
+    sal_data = [
+        [Paragraph('ENTRY',       sal_s),
+         Paragraph('MID-CAREER',  sal_s),
+         Paragraph('TOP EARNERS', sal_s)],
+        [Paragraph(market.get('entry_salary', ''),      sal_v),
+         Paragraph(market.get('mid_career_salary', ''), sal_v),
+         Paragraph(market.get('top_salary', ''),        sal_v)],
+    ]
+    st = Table(sal_data, colWidths=[56*mm, 60*mm, 54*mm])
+    st.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), HexColor('#F9F8FF')),
+        ('TOPPADDING',    (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 10),
+        ('LINEAFTER',     (0, 0), (1, -1),  0.5, C_RULE),
+        ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
     ]))
-    return inner
+    visual.append(st)
+    visual.append(sp(4))
+    visual.append(Paragraph(SALARY_DISCLAIMER, S['small_muted']))
+    visual.append(sp(6))
+
+    return header + [KeepTogether(visual)]
 
 
-# ── Cover page ─────────────────────────────────────────────────────────────────
-
-def build_cover(ctx: dict) -> list:
-    email = ctx.get('email', '')
-    grade = ctx.get('grade', '')
-    today = date.today().strftime('%d %B %Y')
-
-    return [
-        sp(60),
-        Paragraph('CareerMap', STYLES['cover_title']),
-        sp(4),
-        Paragraph('Your Personalised Career Report', STYLES['cover_sub']),
-        sp(40),
-        rule(),
-        sp(12),
-        Paragraph(email, STYLES['cover_email']),
-        sp(6),
-        Paragraph(grade, STYLES['cover_sub']),
-        sp(6),
-        Paragraph(today, STYLES['cover_date']),
-        sp(12),
-        rule(),
-        sp(40),
-        Paragraph(
-            'This report was generated from your CareerMap assessment responses. '
-            'Everything in it is specific to how you answered — not a generic profile.',
-            STYLES['caption'],
-        ),
+def _block_internships(internships):
+    if not internships:
+        return []
+    items = career_header('Internships to target in the next 12 months')
+    rs = ParagraphStyle('ir', fontName='Helvetica-Bold', fontSize=9,
+        textColor=C_PURPLE_TEXT, leading=13)
+    ws = ParagraphStyle('iw', fontName='Helvetica', fontSize=9,
+        textColor=C_MUTED, leading=13)
+    rows = [
+        [Paragraph(e.get('name', ''), rs), Paragraph(e.get('how', ''), ws)]
+        for e in internships[:4]
     ]
+    intern_t = Table(rows, colWidths=[62*mm, 108*mm])
+    intern_t.setStyle(TableStyle([
+        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [HexColor('#F9FAFB'), C_WHITE]),
+        ('TOPPADDING',     (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING',  (0, 0), (-1, -1), 7),
+        ('LEFTPADDING',    (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING',   (0, 0), (-1, -1), 8),
+        ('LINEBELOW',      (0, 0), (-1, -2), 0.5, C_RULE),
+        ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    items.append(intern_t)
+    items.append(sp(4))
+    items.append(Paragraph(
+        'Find these on Internshala, LinkedIn and Unstop. '
+        'For research and project roles, a direct email works better than a portal application.',
+        S['small_muted']))
+    items.append(sp(8))
+    return items
 
 
-# ── About this report ──────────────────────────────────────────────────────────
+def _block_thirty_day(next_30):
+    if not next_30:
+        return []
+    header = career_header('Your next 30 days')
+    et = Table([[Paragraph(next_30, S['body_muted'])]], colWidths=[FULL_W])
+    et.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), C_PURPLE_LIGHT),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 12),
+        ('TOPPADDING',    (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LINEAFTER',     (0, 0), (0, -1),  3, C_PURPLE),
+    ]))
+    return header + [KeepTogether([et, sp(10), CounsellorNudge(width=FULL_W)])]
 
-def build_about(ctx: dict) -> list:
+
+def _career_block(story, domain, career_data, internships, next_30,
+                  market, section_label, is_undergrad):
+    story.extend(_block_fit(domain, career_data, section_label))
+    story.extend(_block_paths(career_data))
+    story.extend(_block_stream(career_data))
+    story.extend(_block_degrees(career_data, is_undergrad))
+    story.extend(_block_market(market))
+    story.extend(_block_internships(internships))
+    story.extend(_block_thirty_day(next_30))
+    story.append(PageBreak())
+
+
+# ── Page sections ──────────────────────────────────────────────────────────────────
+
+def _build_cover(ctx):
+    grade    = ctx.get('grade', '')
+    headline = ctx.get('headline', '')
+    bucket   = ctx.get('bucket', '')
+    domains  = ctx.get('domains', [])
+    domain_names = '\n'.join(d['name'] for d in domains[:3])
+
+    story = [sp(38 * mm)]
+    story.append(Paragraph('CareerMap', S['cover_logo']))
+    story.append(Paragraph('Your personalised career report', S['cover_tagline']))
+    story.append(sp(18 * mm))
+    story.append(Paragraph(headline, S['cover_name']))
+    story.append(sp(3))
+    story.append(Paragraph(f'{grade}  ·  {bucket}', S['cover_grade']))
+    story.append(sp(8 * mm))
+    story.append(HRFlowable(width='100%', thickness=0.5,
+        color=HexColor('#6060A0'), spaceAfter=8))
+
+    col_data = [
+        [Paragraph('PROFILE TYPE', S['cover_label']),
+         Paragraph('TOP DOMAINS',  S['cover_label']),
+         Paragraph('GRADE STAGE',  S['cover_label'])],
+        [Paragraph(bucket,         S['cover_val']),
+         Paragraph(domain_names,   S['cover_val']),
+         Paragraph(grade,          S['cover_val'])],
+    ]
+    t = Table(col_data, colWidths=[52*mm, 65*mm, 43*mm])
+    t.setStyle(TableStyle([
+        ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+    ]))
+    story.append(t)
+    story.append(sp(22 * mm))
+    story.append(Paragraph('3 careers  ·  Personalised  ·  2025', S['cover_tagline']))
+    story.append(PageBreak())
+    return story
+
+
+def _build_about(ctx):
     from prompts import DECISION_WINDOW_GRADES
-    grade = ctx.get('grade', '')
-    urgency = grade in DECISION_WINDOW_GRADES
+    is_dw = ctx.get('grade', '') in DECISION_WINDOW_GRADES
 
-    parts = [
-        Paragraph('About This Report', STYLES['h1']),
-        sp(6),
-        Paragraph(
-            'The CareerMap assessment collected seven signals: how you think, how you reason, '
-            'what subjects and activities energise you, who inspires you, and what motivates you. '
-            'The Virtual Edu Guide used these to identify three domains worth exploring, '
-            'and this report goes deeper into each of them.',
-            STYLES['body'],
-        ),
-        sp(8),
-        Paragraph(
-            'This is not a verdict. It is a starting point. The domains identified are not a ceiling '
-            'on what you can do; they are directions that match how you actually think and what '
-            'genuinely interests you. Career paths shift. Your interests will keep evolving. '
-            'Use this report to open conversations, not to close them.',
-            STYLES['body'],
-        ),
+    story = []
+    header = []
+    section_divider(header, 'About this report')
+    header.append(Paragraph('What is inside', S['h1']))
+    story.append(KeepTogether(header))
+
+    if is_dw:
+        urgency_box(story,
+            'You are in Class 11 or 12. Stream choices, subject selections and your first '
+            'internship all happen in the next 12 to 18 months. This report is designed to '
+            'help you make those choices deliberately, not by default.')
+
+    callout_box(story, 'Free counsellor call included',
+        'After you read this report a counsellor will call you within 48 hours. '
+        'The call is to help you understand what is in here and decide on your next steps. '
+        'It is not a sales call.')
+
+    items_list = [
+        ('Your thinking style',
+         'How you process information and where you do your best work'),
+        ('Your strengths and blind spots',
+         'Drawn directly from your answers, not a generic template'),
+        ('Three career deep-dives',
+         'Each career covered fully: fit, paths, stream guidance, degrees, '
+         'salary, internships and your first 30 days'),
+        ('Parent summary',
+         'So they understand your direction without you having to explain everything'),
     ]
+    for pri, sec in items_list:
+        ps = ParagraphStyle('bp', fontName='Helvetica-Bold', fontSize=10,
+            textColor=C_PURPLE_TEXT, leading=15, spaceAfter=1)
+        ss = ParagraphStyle('bs', fontName='Helvetica', fontSize=9,
+            textColor=C_MUTED, leading=13, spaceAfter=6)
+        story.append(Paragraph(f'&#8227;  {pri}', ps))
+        story.append(Paragraph(f'    {sec}', ss))
 
-    if urgency:
-        parts += [
-            sp(8),
-            colored_box([
-                Paragraph('A note for this stage', STYLES['h3']),
-                sp(4),
-                Paragraph(
-                    'You are at the Decision Window: stream and subject choices are close. '
-                    'This report includes specific stream and subject guidance for each domain. '
-                    'Those sections are worth reading carefully before finalising your choices.',
-                    STYLES['body_left'],
-                ),
-            ], bg=AMBER_LIGHT),
-        ]
-
-    return parts
+    story.append(PageBreak())
+    return story
 
 
-# ── Thinking style + Strengths ─────────────────────────────────────────────────
-
-def build_thinking_section(data: dict) -> list:
-    ts = data.get('thinking_style', {})
-    strengths = data.get('strengths', [])
+def _build_thinking(data):
+    ts          = data.get('thinking_style', {})
+    strengths   = data.get('strengths', [])
     blind_spots = data.get('blind_spots', [])
 
-    parts = [
-        Paragraph('How You Think', STYLES['h1']),
-        rule(),
-        sp(4),
-    ]
+    story = []
 
+    # Section 1 — thinking style
+    s1_header = []
+    section_divider(s1_header, 'Section 1 — Your thinking style')
+    s1_header.append(Paragraph('How You Think', S['h1']))
+    story.append(KeepTogether(s1_header))
+    story.append(sp(4))
     for key in ('para1', 'para2'):
         text = ts.get(key, '')
         if text:
-            parts += [Paragraph(text, STYLES['body']), sp(6)]
+            story.append(Paragraph(text, S['body']))
+            story.append(sp(6))
 
-    parts += [sp(10), Paragraph('Your Strengths', STYLES['h1']), rule(), sp(4)]
+    story.append(PageBreak())
+
+    # Section 2 — strengths and blind spots
+    s2_header = []
+    section_divider(s2_header, 'Section 2 — Strengths and blind spots')
+    s2_header.append(Paragraph('What your answers showed', S['h1']))
+    s2_header.append(Paragraph('Your strengths', S['h2']))
+    story.append(KeepTogether(s2_header))
 
     for s in strengths:
-        parts += [Paragraph(f'• {s}', STYLES['bullet']), sp(4)]
+        if ' — ' in s:
+            title, desc = s.split(' — ', 1)
+        else:
+            title, desc = s, ''
+        story.append(KeepTogether([
+            Paragraph(f'<b>&#8227;  {title}</b>', S['bold']),
+            Paragraph(f'    {desc}', S['body_muted']),
+            sp(4),
+        ]))
 
-    parts += [sp(10), Paragraph('Areas to Watch', STYLES['h1']), rule(), sp(4)]
-
+    story.append(sp(6))
+    story.append(Paragraph('Areas to watch', S['h2']))
     for b in blind_spots:
-        parts += [Paragraph(f'• {b}', STYLES['bullet']), sp(4)]
-
-    return parts
-
-
-# ── Career deep-dive ───────────────────────────────────────────────────────────
-
-def build_career_section(domain: dict, career_data: dict, internships: list,
-                         next_30: str, market: dict, ctx: dict) -> list:
-    from education_context import SALARY_DISCLAIMER, UG_AMBER_NOTE
-    from prompts import DECISION_WINDOW_GRADES, UNDERGRAD_GRADES
-    grade = ctx.get('grade', '')
-    is_decision_window = grade in DECISION_WINDOW_GRADES
-    is_undergrad = grade in UNDERGRAD_GRADES
-    domain_number = ctx['domains'].index(domain) + 1
-
-    parts = domain_banner(domain['name'], domain_number)
-
-    # Why this fits you
-    fit = career_data.get('fit_rationale', '')
-    if fit:
-        parts += career_header('Why this fits you', PURPLE) + [
-            Paragraph(fit, STYLES['body']),
-            sp(10),
-        ]
-
-    # Paths within this domain
-    paths = career_data.get('paths', [])
-    if paths:
-        parts += career_header('Paths within this domain', PURPLE)
-        path_rows = []
-        for p in paths[:5]:
-            path_rows.append([
-                Paragraph(p.get('name', ''), STYLES['path_name']),
-                Paragraph(p.get('description', ''), STYLES['path_desc']),
-            ])
-        path_table = Table(path_rows, colWidths=[1.8*inch, W - 1.8*inch - 12])
-        path_table.setStyle(TableStyle([
-            ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING',   (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
-            ('TOPPADDING',    (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('ROWBACKGROUNDS', (0, 0), (-1, -1), [PURPLE_LIGHT, white]),
-        ]))
-        parts += [path_table, sp(10)]
-
-    # Stream guidance (Decision Window only)
-    if is_decision_window:
-        sg = career_data.get('stream_guidance', '')
-        if sg:
-            parts += career_header('Stream and Subject Guidance', CORAL) + [
-                Paragraph(sg, STYLES['body']),
-                sp(4),
-                Paragraph(
-                    'Note: Maths board requirements and course prerequisites vary across schools and boards. '
-                    'Always verify current requirements directly with your school.',
-                    STYLES['caption'],
-                ),
-                sp(10),
-            ]
-
-    # UG / Postgrad degrees
-    degree_key = 'postgrad_degrees' if is_undergrad else 'ug_degrees'
-    degrees = career_data.get(degree_key, [])
-    degree_label = 'Postgraduate Degrees to Consider' if is_undergrad else 'UG Degrees to Consider'
-    if degrees:
-        deg_rows = [[
-            Paragraph('Degree', STYLES['table_header']),
-            Paragraph('What it opens up', STYLES['table_header']),
-        ]]
-        for d in degrees[:6]:
-            deg_rows.append([
-                Paragraph(d.get('name', ''), STYLES['table_body']),
-                Paragraph(d.get('note', ''), STYLES['table_body']),
-            ])
-        deg_table = Table(deg_rows, colWidths=[2.2*inch, W - 2.2*inch - 12])
-        deg_table.setStyle(TableStyle([
-            ('BACKGROUND',    (0, 0), (-1, 0),  TABLE_HEADER),
-            ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
-            ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING',   (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
-            ('TOPPADDING',    (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('GRID',          (0, 0), (-1, -1), 0.5, RULE_LINE),
-        ]))
-        parts += career_header(degree_label, PURPLE) + [
-            deg_table,
+        if ' — ' in b:
+            title, desc = b.split(' — ', 1)
+        else:
+            title, desc = b, ''
+        story.append(KeepTogether([
+            Paragraph(f'<b>&#8227;  {title}</b>', S['bold']),
+            Paragraph(f'    {desc}', S['body_muted']),
             sp(4),
-            Paragraph(UG_AMBER_NOTE, STYLES['caption_amber']),
-            sp(10),
-        ]
-
-    # Market demand + salary (static)
-    sal_rows = [
-        [Paragraph('Market demand', STYLES['table_header']), Paragraph(market['demand'], STYLES['table_body'])],
-        [Paragraph('Entry-level salary', STYLES['table_header']), Paragraph(market['entry_salary'], STYLES['table_body'])],
-        [Paragraph('Mid-career salary', STYLES['table_header']), Paragraph(market['mid_career_salary'], STYLES['table_body'])],
-        [Paragraph('Top earners', STYLES['table_header']), Paragraph(market['top_salary'], STYLES['table_body'])],
-    ]
-    sal_table = Table(sal_rows, colWidths=[2.2*inch, W - 2.2*inch - 12])
-    sal_table.setStyle(TableStyle([
-        ('BACKGROUND',    (0, 0), (0, -1),  TABLE_HEADER),
-        ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
-        ('TOPPADDING',    (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('GRID',          (0, 0), (-1, -1), 0.5, RULE_LINE),
-    ]))
-    parts += career_header('Market Demand and Salary', PURPLE) + [
-        KeepTogether([
-            Paragraph(market.get('note', ''), STYLES['body_left']),
-            sp(4),
-            sal_table,
-            sp(4),
-            Paragraph(SALARY_DISCLAIMER, STYLES['caption']),
-        ]),
-        sp(10),
-    ]
-
-    # Internships (Haiku)
-    if internships:
-        int_rows = [[
-            Paragraph('Opportunity', STYLES['table_header']),
-            Paragraph('Type', STYLES['table_header']),
-            Paragraph('How to find it', STYLES['table_header']),
-        ]]
-        for entry in internships[:4]:
-            int_rows.append([
-                Paragraph(entry.get('name', ''), STYLES['table_body']),
-                Paragraph(entry.get('type', ''), STYLES['table_body']),
-                Paragraph(entry.get('how', ''), STYLES['table_body']),
-            ])
-        int_table = Table(int_rows, colWidths=[1.8*inch, 1.1*inch, W - 2.9*inch - 12])
-        int_table.setStyle(TableStyle([
-            ('BACKGROUND',    (0, 0), (-1, 0),  TABLE_HEADER),
-            ('FONTNAME',      (0, 0), (-1, 0),  'Helvetica-Bold'),
-            ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING',   (0, 0), (-1, -1), 5),
-            ('RIGHTPADDING',  (0, 0), (-1, -1), 5),
-            ('TOPPADDING',    (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('GRID',          (0, 0), (-1, -1), 0.5, RULE_LINE),
         ]))
-        parts += career_header('Internships to Target', PURPLE) + [int_table, sp(10)]
 
-    # Next 30 days (Haiku)
-    if next_30:
-        parts += career_header('Your Next 30 Days', GREEN) + [
-            KeepTogether([
-                colored_box([Paragraph(next_30, STYLES['body_left'])], bg=GREEN_LIGHT),
-            ]),
-        ]
-
-    return parts
+    story.append(PageBreak())
+    return story
 
 
-# ── Parent summary ─────────────────────────────────────────────────────────────
+def _build_parent(data, ctx):
+    story = []
+    ps_header = []
+    section_divider(ps_header, 'Parent summary')
+    ps_header.append(Paragraph('For parents to read', S['h1']))
+    story.append(KeepTogether(ps_header))
 
-def build_parent_summary(data: dict, ctx: dict) -> list:
-    parts = [
-        Paragraph('For Your Parent', STYLES['h1']),
-        rule(),
-        sp(4),
-        Paragraph(
-            'This section is written for the parent or guardian reading this report.',
-            STYLES['section_label'],
-        ),
-        sp(8),
-    ]
+    callout_box(story, 'This page is written for you.',
+        'The rest of the report is written for your child. This page is for you.',
+        bg=C_PURPLE_LIGHT, border=C_PURPLE_BORDER, text_color=C_PURPLE_TEXT)
 
     for key in ('para1', 'para2', 'para3'):
         text = data.get(key, '')
         if text:
-            parts += [Paragraph(text, STYLES['body']), sp(8)]
+            story.append(Paragraph(text, S['body']))
+            story.append(sp(6))
 
-    parts += [
-        sp(4),
-        colored_box([
-            Paragraph('Free counsellor call included', STYLES['callout_bold']),
-            sp(4),
-            Paragraph(COUNSELLOR_CALLOUT, STYLES['callout']),
-        ], bg=GREEN_LIGHT),
-    ]
-
-    return parts
+    story.append(sp(8))
+    callout_box(story, 'The counsellor call', COUNSELLOR_CALLOUT)
+    return story
 
 
-# ── What happens next ──────────────────────────────────────────────────────────
+def _build_what_next():
+    story = [PageBreak()]
+    whn_header = []
+    section_divider(whn_header, 'What happens next')
+    whn_header.append(Paragraph('Three things to do now', S['h1']))
+    story.append(KeepTogether(whn_header))
+    story.append(sp(8))
 
-def build_what_next() -> list:
     steps = [
-        ('Read the report once without pressure',
-         'Go through each domain. Note what resonates and what does not. You do not need to decide anything yet.'),
-        ('Talk to the counsellor',
-         'A CareerMap counsellor will call within 48 hours. They have read this report. '
-         'Come with questions, doubts, and anything that felt off.'),
-        ('Pick one explore action',
-         'Each domain has a "Next 30 Days" section. Pick one thing from any domain and do it. '
-         'One conversation, one video, one visit. Start small.'),
-        ('Share with someone who knows you',
-         'A parent, an older sibling, a teacher who has seen you work. '
-         'Ask them what they recognise and what surprises them.'),
+        ('Read the career that pulled you most',
+         'Not the most impressive one. The one where you felt something while reading it. '
+         'Go back to that chapter and read the 30-day step at the end.'),
+        ('Do the 30-day step for that career',
+         'It is one specific action. It takes less than an hour to start. '
+         'Do not wait until you feel ready.'),
+        ('Take the counsellor call',
+         'A counsellor will contact you within 48 hours. '
+         'The call is about this report and your next steps. Bring one question.'),
     ]
+    for num, (title, body) in enumerate(steps, 1):
+        ns = ParagraphStyle('sn', fontName='Helvetica-Bold',
+            fontSize=18, textColor=C_PURPLE, leading=22)
+        dt = Table(
+            [[Paragraph(str(num), ns),
+              [Paragraph(title, S['h3']), Paragraph(body, S['body'])]]],
+            colWidths=[16*mm, 154*mm],
+        )
+        dt.setStyle(TableStyle([
+            ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING',    (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+        ]))
+        story.append(dt)
+        story.append(sp(8))
 
-    parts = [
-        Paragraph('What Happens Next', STYLES['h1']),
-        rule(),
-        sp(6),
-    ]
-
-    for i, (title, desc) in enumerate(steps, 1):
-        parts += [
-            Paragraph(f'{i}. {title}', STYLES['h3']),
-            Paragraph(desc, STYLES['body']),
-            sp(8),
-        ]
-
-    parts += [
-        sp(16),
-        rule(),
-        Paragraph(
-            'CareerMap · Virtual Edu Guide · V1 · '
-            'CBSE/ISC 2025 pathways · atrios.in',
-            STYLES['caption'],
-        ),
-    ]
-
-    return parts
+    story.append(sp(12))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=C_RULE, spaceAfter=8))
+    story.append(Paragraph(
+        'CareerMap 2025  ·  Confidential, for the student named on the cover only.  '
+        'Guidance reflects general pathways across boards. '
+        'Specific college options, entrance exams and cutoffs will be covered '
+        'on your counsellor call.',
+        S['small_muted']))
+    return story
 
 
-# ── Main entry point ───────────────────────────────────────────────────────────
+# ── Entry point ───────────────────────────────────────────────────────────────────
 
 def build_pdf(ctx: dict, content: dict) -> bytes:
     """Render the full PDF and return as bytes."""
+    from prompts import DECISION_WINDOW_GRADES, UNDERGRAD_GRADES
+
+    grade        = ctx.get('grade', '')
+    headline     = ctx.get('headline', '')
+    is_dw        = grade in DECISION_WINDOW_GRADES
+    is_undergrad = grade in UNDERGRAD_GRADES
+    domains      = ctx.get('domains', [])
+    market_data  = ctx.get('market_data', [])
+
+    stage_note = (
+        '12 to 18 months to make subject and application choices that matter'
+        if is_dw else ''
+    )
+
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
         pagesize=A4,
-        rightMargin=inch,
-        leftMargin=inch,
-        topMargin=0.9 * inch,
-        bottomMargin=0.75 * inch,
-        title='CareerMap Report',
+        leftMargin=20 * mm,
+        rightMargin=20 * mm,
+        topMargin=16 * mm,
+        bottomMargin=14 * mm,
+        title=f'CareerMap — {headline}',
         author='CareerMap',
     )
 
     story = []
+    story.extend(_build_cover(ctx))
+    story.extend(_build_about(ctx))
+    story.extend(_build_thinking(content.get('thinking_and_strengths', {})))
 
-    story.extend(build_cover(ctx))
-    story.append(PageBreak())
-
-    story.extend(build_about(ctx))
-    story.append(PageBreak())
-
-    story.extend(build_thinking_section(content['thinking_and_strengths']))
-    story.append(PageBreak())
-
-    domains = ctx['domains']
-    market_data = ctx['market_data']
     internships_all = content.get('internships', {})
-    next_30_all = content.get('next_30_days', {})
+    next_30_all     = content.get('next_30_days', {})
 
-    for i, domain in enumerate(domains):
-        key = f'domain_{i + 1}'
-        career_data = content.get(f'career_{i + 1}', {})
-        internships = internships_all.get(key, [])
-        next_30 = next_30_all.get(key, '')
-        market = market_data[i]
+    for i, domain in enumerate(domains[:3]):
+        key          = f'domain_{i + 1}'
+        career_data  = content.get(f'career_{i + 1}', {})
+        internships  = internships_all.get(key, [])
+        next_30      = next_30_all.get(key, '')
+        market       = market_data[i] if i < len(market_data) else {}
+        section_label = f'Career {i + 1} of {min(len(domains), 3)} — {domain["name"]}'
 
-        story.extend(build_career_section(domain, career_data, internships, next_30, market, ctx))
-        story.append(PageBreak())
+        _career_block(story, domain, career_data, internships, next_30,
+                      market, section_label, is_undergrad)
 
-    story.extend(build_parent_summary(content.get('parent_summary', {}), ctx))
-    story.append(PageBreak())
+    story.extend(_build_parent(content.get('parent_summary', {}), ctx))
+    story.extend(_build_what_next())
 
-    story.extend(build_what_next())
-
-    doc.build(story)
+    doc.build(
+        story,
+        onFirstPage=_make_first_page(headline, stage_note),
+        onLaterPages=_make_later_pages(headline),
+    )
     return buf.getvalue()
