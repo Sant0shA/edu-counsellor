@@ -31,7 +31,7 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
     setSelectedMulti([]);
 
     if (prevIsMulti) {
-      setSelectedMulti(lastAnswer ? lastAnswer.split(', ') : []);
+      setSelectedMulti(lastAnswer ? lastAnswer.split('||') : []);
     }
     // Single-select: leave blank so user picks fresh — pre-restoring caused
     // confusion since auto-advance made it look like the click had no effect.
@@ -120,7 +120,7 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
       {isMulti && (
         <button
           className="btn-primary"
-          onClick={() => advance(selectedMulti.join(', '))}
+          onClick={() => advance(selectedMulti.join('||'))}
           disabled={selectedMulti.length === 0}
         >
           Continue
