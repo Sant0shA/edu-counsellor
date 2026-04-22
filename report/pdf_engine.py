@@ -386,7 +386,7 @@ def _block_thirty_day(next_30):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
         ('LINEAFTER',     (0, 0), (0, -1),  3, C_PURPLE),
     ]))
-    return header + [KeepTogether([et, sp(10), CounsellorNudge(width=FULL_W)])]
+    return [KeepTogether(header + [et, sp(10), CounsellorNudge(width=FULL_W)])]
 
 
 def _career_block(story, domain, career_data, internships, next_30,

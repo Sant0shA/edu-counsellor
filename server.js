@@ -371,14 +371,14 @@ app.post('/api/coupon/validate', async (req, res) => {
       return res.json({ valid: false, error: 'Invalid or expired coupon code.' });
     }
 
-    // If userId provided, check prior redemption
+    // If userId provided, check prior redemption (any coupon — 1 report per account)
     if (userId) {
       const { rows: used } = await pool.query(
-        'SELECT 1 FROM coupon_redemptions WHERE coupon_id = $1 AND user_id = $2',
-        [rows[0].id, String(userId)]
+        'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
+        [String(userId)]
       );
       if (used.length > 0) {
-        return res.json({ valid: false, error: 'This coupon has already been used.' });
+        return res.json({ valid: false, error: 'A report has already been redeemed on this account.' });
       }
     }
 
@@ -424,14 +424,14 @@ app.post('/api/coupon/redeem', async (req, res) => {
 
     const couponId = rows[0].id;
 
-    // Check not already redeemed by this user
+    // Check not already redeemed by this user (any coupon — 1 report per account)
     const { rows: alreadyUsed } = await client.query(
-      'SELECT 1 FROM coupon_redemptions WHERE coupon_id = $1 AND user_id = $2',
-      [couponId, String(userId)]
+      'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
+      [String(userId)]
     );
     if (alreadyUsed.length > 0) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'This coupon has already been used.' });
+      return res.status(400).json({ error: 'A report has already been redeemed on this account.' });
     }
 
     // Increment uses_count
