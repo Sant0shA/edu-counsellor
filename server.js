@@ -46,6 +46,28 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
+// ── DB init — ensures report_queue exists on every deploy ────────────────────
+async function initDb() {
+  if (!pool) return;
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS report_queue (
+        id         SERIAL PRIMARY KEY,
+        session_id INTEGER,
+        user_id    TEXT        NOT NULL,
+        email      TEXT        NOT NULL,
+        status     TEXT        NOT NULL DEFAULT 'pending',
+        error      TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    console.log('[db] report_queue table ready');
+  } catch (err) {
+    console.error('[db] initDb failed:', err.message);
+  }
+}
+
 // ── API proxy ─────────────────────────────────────────────────────────────────
 // OPENROUTER_KEY lives only in Railway env vars — never in the client bundle
 app.post('/api/veg', async (req, res) => {
@@ -421,15 +443,13 @@ app.post('/api/coupon/redeem', async (req, res) => {
       [couponId, String(userId), sessionId || null]
     );
 
-    // Create report queue entry (table added in Item 3 — fails silently until then)
-    try {
-      const { rows: qRows } = await client.query(
-        `INSERT INTO report_queue (session_id, user_id, email, status)
-         VALUES ($1, $2, $3, 'pending') RETURNING id`,
-        [sessionId || null, String(userId), email]
-      );
-      queueId = qRows[0].id;
-    } catch (_) { /* report_queue table not yet created */ }
+    // Queue report generation
+    const { rows: qRows } = await client.query(
+      `INSERT INTO report_queue (session_id, user_id, email, status)
+       VALUES ($1, $2, $3, 'pending') RETURNING id`,
+      [sessionId || null, String(userId), email]
+    );
+    queueId = qRows[0].id;
 
     await client.query('COMMIT');
   } catch (err) {
@@ -439,7 +459,7 @@ app.post('/api/coupon/redeem', async (req, res) => {
     client.release();
   }
 
-  // Spawn PDF generator — fire-and-forget (only if queue row was created)
+  // Spawn PDF generator — fire-and-forget
   if (queueId != null) {
     const child = spawn(
       'python3',
@@ -456,6 +476,8 @@ app.post('/api/coupon/redeem', async (req, res) => {
       }
     });
     child.unref();
+  } else {
+    console.error(`[report] queueId is null — PDF will not be generated for email=${email}`);
   }
 
   // Send emails — non-blocking
@@ -510,6 +532,8 @@ app.get('*', (_req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`CareerShifu server running on port ${PORT}`);
+initDb().then(() => {
+  app.listen(PORT, () => {
+    console.log(`CareerShifu server running on port ${PORT}`);
+  });
 });
