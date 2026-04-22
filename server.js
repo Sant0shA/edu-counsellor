@@ -165,7 +165,7 @@ app.post('/api/waitlist', async (req, res) => {
 
     // Confirmation to user
     resend.emails.send({
-      from: 'CareerShifu <noreply@atrios.in>',
+      from: 'CareerShifu <contact@careershifu.com>',
       to: email,
       subject: "Your CareerShifu Report — request received",
       html: `
@@ -186,7 +186,7 @@ app.post('/api/waitlist', async (req, res) => {
     // Notification to admin
     const adminEmail = process.env.ADMIN_EMAIL || 'santosh.abraham@atrios.in';
     resend.emails.send({
-      from: 'CareerShifu <noreply@atrios.in>',
+      from: 'CareerShifu <contact@careershifu.com>',
       to: adminEmail,
       subject: `New Pro lead: ${safeName}`,
       html: `
@@ -248,7 +248,7 @@ app.post('/api/auth/otp/send', async (req, res) => {
   // ── Send email via Resend (works with or without DB) ─────────────────────
   if (resend) {
     resend.emails.send({
-      from: 'CareerShifu <noreply@atrios.in>',
+      from: 'CareerShifu <contact@careershifu.com>',
       to: email.trim(),
       subject: 'Your CareerShifu verification code',
       html: `
@@ -488,7 +488,7 @@ app.post('/api/coupon/redeem', async (req, res) => {
     const safeSession = escHtml(sessionId ? String(sessionId) : '—');
 
     resend.emails.send({
-      from: 'CareerShifu <noreply@atrios.in>',
+      from: 'CareerShifu <contact@careershifu.com>',
       to: email,
       subject: 'Request Confirmed | Your CareerShifu Report',
       html: `
@@ -509,7 +509,7 @@ app.post('/api/coupon/redeem', async (req, res) => {
 
     const adminEmail = process.env.ADMIN_EMAIL || 'santosh.abraham@atrios.in';
     resend.emails.send({
-      from: 'CareerShifu <noreply@atrios.in>',
+      from: 'CareerShifu <contact@careershifu.com>',
       to: adminEmail,
       subject: `Report request: coupon ${safeCode}`,
       html: `

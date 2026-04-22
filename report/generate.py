@@ -242,7 +242,7 @@ def send_report_email(email: str, pdf_bytes: bytes):
             'Content-Type': 'application/json',
         },
         json={
-            'from': 'CareerShifu <noreply@atrios.in>',
+            'from': 'CareerShifu <contact@careershifu.com>',
             'to': email,
             'subject': 'Your CareerShifu Report is attached',
             'html': (
