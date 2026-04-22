@@ -9,7 +9,7 @@ import Results from './components/Results'
 import SignIn from './components/SignIn'
 import { psychometric, personal, getCognitiveQuestions } from './data/questions'
 import { buildPrompt } from './data/prompt'
-import { callVEG, saveSession } from './utils/api'
+import { callVEG, saveSession, fetchLatestSession } from './utils/api'
 
 export default function App() {
   const [screen, setScreen] = useState('intro')
@@ -26,13 +26,15 @@ export default function App() {
   })
   const [result, setResult] = useState(null)
   const [sessionId, setSessionId] = useState(null)
+  const [priorSession, setPriorSession] = useState(null)
+  const [checkingSession, setCheckingSession] = useState(false)
 
   useEffect(() => {
     if (screen !== 'loading') return
     const prompt = buildPrompt(answers)
     callVEG(prompt)
       .then(async (data) => {
-        const sid = await saveSession(answers.grade, answers, data)
+        const sid = await saveSession(answers.grade, answers, data, userId)
         setSessionId(sid)
         setResult(data)
         setScreen('results')
@@ -56,8 +58,35 @@ export default function App() {
     setSessionId(null)
     setUserId(null)
     setUserEmail(null)
+    setPriorSession(null)
+    setCheckingSession(false)
     setScreen('intro')
   }
+
+  async function handleVerified(uid, email) {
+    setUserId(uid)
+    setUserEmail(email)
+    setShowSignIn(false)
+    setCheckingSession(true)
+    try {
+      const sess = await fetchLatestSession(uid)
+      if (sess) {
+        setPriorSession(sess)
+        setResult(sess.result)
+        setSessionId(sess.id)
+        setAnswers((prev) => ({ ...prev, grade: sess.grade }))
+        setScreen('results')
+      } else {
+        setScreen('grade')
+      }
+    } catch {
+      setScreen('grade')
+    } finally {
+      setCheckingSession(false)
+    }
+  }
+
+  if (checkingSession) return <Loading />
 
   if (screen === 'intro') {
     return (
@@ -66,12 +95,7 @@ export default function App() {
         {showSignIn && (
           <SignIn
             onClose={() => setShowSignIn(false)}
-            onVerified={(uid, email) => {
-              setUserId(uid)
-              setUserEmail(email)
-              setShowSignIn(false)
-              setScreen('grade')
-            }}
+            onVerified={handleVerified}
           />
         )}
       </>
@@ -178,7 +202,7 @@ export default function App() {
   }
 
   if (screen === 'results') {
-    return <Results result={result} sessionId={sessionId} grade={answers.grade} userId={userId} userEmail={userEmail} onRestart={restart} />
+    return <Results result={result} sessionId={sessionId} grade={answers.grade} userId={userId} userEmail={userEmail} onRestart={restart} daysRemaining={priorSession ? priorSession.daysRemaining : null} />
   }
 
   return null

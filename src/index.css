@@ -1390,3 +1390,79 @@ p { color: var(--text); }
   padding: 0;
   text-decoration: underline;
 }
+
+/* ── Prior result banner ─────────────────────────────────────────────────── */
+.prior-result-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--report-amber-bg);
+  border: 1px solid #e8c98a;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+.prior-result-days {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--report-amber-text);
+}
+.btn-retake {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--report-amber-text);
+  background: rgba(99,56,6,0.1);
+  border: 1.5px solid #c8a060;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.btn-retake:hover { background: rgba(99,56,6,0.18); }
+
+/* ── Retake modal ────────────────────────────────────────────────────────── */
+.retake-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(31,27,24,0.1);
+  backdrop-filter: blur(12px);
+}
+.retake-modal-card {
+  width: 100%;
+  max-width: 440px;
+  background: #fcf2ed;
+  border-radius: 16px;
+  box-shadow: 0 40px 60px -15px rgba(31,27,24,0.12);
+  border: 1px solid rgba(226,191,180,0.1);
+  padding: 40px 32px 32px;
+  position: relative;
+}
+.retake-modal-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--report-amber-text);
+  margin: 0 0 8px;
+}
+.retake-modal-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1f1b18;
+  margin: 0 0 12px;
+  line-height: 1.25;
+}
+.retake-modal-body {
+  font-size: 15px;
+  color: #594139;
+  line-height: 1.6;
+  margin: 0 0 24px;
+}

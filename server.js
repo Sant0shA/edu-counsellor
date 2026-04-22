@@ -63,6 +63,8 @@ async function initDb() {
       )
     `);
     console.log('[db] report_queue table ready');
+    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id INTEGER`);
+    console.log('[db] sessions.user_id column ready');
   } catch (err) {
     console.error('[db] initDb failed:', err.message);
   }
@@ -123,18 +125,52 @@ app.post('/api/veg', async (req, res) => {
   }
 });
 
-// ── Save anonymous session ────────────────────────────────────────────────────
+// ── Save session ─────────────────────────────────────────────────────────────
 app.post('/api/session', async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DB not configured' });
-  const { grade, answers, result } = req.body;
+  const { grade, answers, result, userId } = req.body;
   if (!answers || !result) return res.status(400).json({ error: 'Missing data' });
 
   try {
     const { rows } = await pool.query(
-      'INSERT INTO sessions (grade, answers, result) VALUES ($1, $2, $3) RETURNING id',
-      [grade, answers, result]
+      'INSERT INTO sessions (grade, answers, result, user_id) VALUES ($1, $2, $3, $4) RETURNING id',
+      [grade, answers, result, userId ? parseInt(userId, 10) : null]
     );
     res.json({ sessionId: rows[0].id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Latest session for a user (30-day window) ─────────────────────────────────
+app.get('/api/session/latest', async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'DB not configured' });
+  const userId = parseInt(req.query.userId, 10);
+  if (!userId || isNaN(userId)) return res.status(400).json({ error: 'Missing userId' });
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, grade, result, created_at
+       FROM sessions
+       WHERE user_id = $1
+         AND created_at > now() - INTERVAL '30 days'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [userId]
+    );
+    if (rows.length === 0) return res.json({ session: null });
+
+    const elapsed = Date.now() - new Date(rows[0].created_at).getTime();
+    const daysRemaining = 30 - Math.floor(elapsed / (1000 * 60 * 60 * 24));
+
+    res.json({
+      session: {
+        id: rows[0].id,
+        grade: rows[0].grade,
+        result: rows[0].result,
+        daysRemaining: Math.max(1, daysRemaining),
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

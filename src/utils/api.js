@@ -53,18 +53,28 @@ const DEMO_RESULT = {
   ],
 };
 
-export async function saveSession(grade, answers, result) {
+export async function saveSession(grade, answers, result, userId) {
   if (!import.meta.env.PROD) return null;
   try {
     const res = await fetch('/api/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ grade, answers, result }),
+      body: JSON.stringify({ grade, answers, result, userId: userId ?? null }),
     });
     if (!res.ok) return null;
     const data = await res.json();
     return data.sessionId ?? null;
-  } catch { return null; } // fail silently — never block the user
+  } catch { return null; }
+}
+
+export async function fetchLatestSession(userId) {
+  if (!import.meta.env.PROD) return null;
+  try {
+    const res = await fetch(`/api/session/latest?userId=${userId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.session ?? null;
+  } catch { return null; }
 }
 
 export async function submitProInterest({ name, phone, email, grade, sessionId }) {

@@ -22,8 +22,9 @@ const VALUE_PROPS = [
   },
 ];
 
-export default function Results({ result, sessionId, grade, userId, userEmail, onRestart }) {
+export default function Results({ result, sessionId, grade, userId, userEmail, onRestart, daysRemaining }) {
   const [couponOpen, setCouponOpen] = useState(false);
+  const [retakeOpen, setRetakeOpen] = useState(false);
   const [couponInput, setCouponInput] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState('');
@@ -108,6 +109,17 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
           <span className="results-badge">Your results</span>
         </div>
       </div>
+
+      {daysRemaining != null && (
+        <div className="prior-result-banner">
+          <span className="prior-result-days">
+            {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining to view this result
+          </span>
+          <button type="button" className="btn-retake" onClick={() => setRetakeOpen(true)}>
+            Retake for ₹150
+          </button>
+        </div>
+      )}
 
       {/* Headline */}
       <div className="headline-card">
@@ -306,6 +318,26 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
       </div>
 
       <p className="results-footer">CareerShifu · Virtual Edu Guide · V1</p>
+
+      {retakeOpen && (
+        <div
+          className="retake-modal-overlay"
+          onClick={(e) => e.target === e.currentTarget && setRetakeOpen(false)}
+        >
+          <div className="retake-modal-card">
+            <button className="modal-close" type="button" onClick={() => setRetakeOpen(false)}>✕</button>
+            <p className="retake-modal-eyebrow">Retake Test</p>
+            <h2 className="retake-modal-title">Paid retakes coming soon</h2>
+            <p className="retake-modal-body">
+              We're setting up Razorpay payments. Once live, you'll be able to
+              retake the test for ₹150 and get a fresh result.
+            </p>
+            <button type="button" className="btn-report" onClick={() => setRetakeOpen(false)}>
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
