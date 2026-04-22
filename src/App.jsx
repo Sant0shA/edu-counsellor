@@ -10,6 +10,7 @@ import SignIn from './components/SignIn'
 import { psychometric, personal, getCognitiveQuestions } from './data/questions'
 import { buildPrompt } from './data/prompt'
 import { callVEG, saveSession, fetchLatestSession } from './utils/api'
+import Returning from './components/Returning'
 
 export default function App() {
   const [screen, setScreen] = useState('intro')
@@ -34,7 +35,8 @@ export default function App() {
     const prompt = buildPrompt(answers)
     callVEG(prompt)
       .then(async (data) => {
-        const sid = await saveSession(answers.grade, answers, data, userId)
+        const { cognitiveQuestions: _cq, ...answersToSave } = answers
+        const sid = await saveSession(answers.grade, answersToSave, data, userId)
         setSessionId(sid)
         setResult(data)
         setScreen('results')
@@ -75,7 +77,7 @@ export default function App() {
         setResult(sess.result)
         setSessionId(sess.id)
         setAnswers((prev) => ({ ...prev, grade: sess.grade }))
-        setScreen('results')
+        setScreen('returning')
       } else {
         setScreen('grade')
       }
@@ -199,6 +201,10 @@ export default function App() {
 
   if (screen === 'loading') {
     return <Loading />
+  }
+
+  if (screen === 'returning') {
+    return <Returning daysRemaining={priorSession?.daysRemaining} onViewResults={() => setScreen('results')} />
   }
 
   if (screen === 'results') {

@@ -103,7 +103,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
   return (
     <div className="screen results-screen">
       <div className="results-header">
-        <span className="screen-logo">CareerShifu</span>
+        <a className="screen-logo" href="https://careershifu.com" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>CareerShifu</a>
         <div className="results-header-right">
           {gradeLabel && <span className="grade-label-badge">{gradeLabel}</span>}
           <span className="results-badge">Your results</span>

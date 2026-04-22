@@ -2,7 +2,7 @@ export default function Intro({ onStart }) {
   return (
     <div className="screen intro-screen">
       <div className="intro-logo">
-        <span className="logo-text">CareerShifu</span>
+        <a className="logo-text" href="https://careershifu.com" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>CareerShifu</a>
       </div>
 
       <div className="intro-tagline">
