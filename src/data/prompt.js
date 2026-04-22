@@ -108,7 +108,6 @@ Return ONLY this JSON. No markdown. No explanation. No match scores or percentag
   "domains": [
     {
       "name": "4-8 word plain-language label describing what someone in this domain does — see naming rules below",
-      "data_category": "one of: technology | healthcare | business | design | law | science | education | communication | social | sports",
       "connection": "1-2 sentences connecting their actual signals to this domain. Use their words.",
       "paths": ["Short label only", "Max 4 words", "No dashes or descriptors", "e.g. UX designer", "e.g. Film director"],
       "explore": "One concrete thing they could try, watch, read or experience this week to learn more about this domain"
@@ -133,11 +132,6 @@ Domain name tone by student stage (STUDENT ACADEMIC STAGE tells you which):
 - Transition Point: role-framed but still plain
   Good: "Using data to change how organisations work" / "Telling stories that change how people think"
   Bad: "Data Science and Analytics" / "Media and Communications"
-
-Rules for data_category:
-- Must be exactly one of the 10 values listed — lowercase, no variations
-- Pick the category that best fits the domain regardless of what the display name says
-- technology | healthcare | business | design | law | science | education | communication | social | sports
 
 Other domain rules:
 - Exactly 3 domains

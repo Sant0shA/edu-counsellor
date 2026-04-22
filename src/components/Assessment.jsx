@@ -19,6 +19,24 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
   );
   const capReached = selectedMulti.length >= MULTI_MAX;
 
+  function goBack() {
+    const prevIndex   = current - 1;
+    const prevQ       = questions[prevIndex];
+    const prevIsMulti = multiSelect && !prevQ.singleSelect;
+    const lastAnswer  = answers[answers.length - 1];
+
+    setAnswers(answers.slice(0, -1));
+    setCurrent(prevIndex);
+    setSelectedSingle(null);
+    setSelectedMulti([]);
+
+    if (prevIsMulti) {
+      setSelectedMulti(lastAnswer ? lastAnswer.split(', ') : []);
+    } else {
+      setSelectedSingle(lastAnswer || null);
+    }
+  }
+
   function advance(value) {
     const next = [...answers, value];
     setAnswers(next);
@@ -63,7 +81,12 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
       </div>
 
       <div className="question-block">
-        <p className="question-counter">{current + 1} of {total}</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <p className="question-counter" style={{ margin: 0 }}>{current + 1} of {total}</p>
+          {current > 0 && (
+            <button className="btn-back" type="button" onClick={goBack}>← back</button>
+          )}
+        </div>
         <h2 className="question-text">{q.question}</h2>
         <p className="question-hint">
           {isMulti ? 'Choose 1 or 2 that resonate most' : 'Choose one'}

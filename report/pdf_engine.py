@@ -390,12 +390,11 @@ def _block_thirty_day(next_30):
 
 
 def _career_block(story, domain, career_data, internships, next_30,
-                  market, section_label, is_undergrad):
+                  section_label, is_undergrad):
     story.extend(_block_fit(domain, career_data, section_label))
     story.extend(_block_paths(career_data))
     story.extend(_block_stream(career_data))
     story.extend(_block_degrees(career_data, is_undergrad))
-    story.extend(_block_market(market))
     story.extend(_block_internships(internships))
     story.extend(_block_thirty_day(next_30))
     story.append(PageBreak())
@@ -471,7 +470,7 @@ def _build_about(ctx):
          'Drawn directly from your answers, not a generic template'),
         ('Three career deep-dives',
          'Each career covered fully: fit, paths, stream guidance, degrees, '
-         'salary, internships and your first 30 days'),
+         'internships and your first 30 days'),
         ('Parent summary',
          'So they understand your direction without you having to explain everything'),
     ]
@@ -623,7 +622,6 @@ def build_pdf(ctx: dict, content: dict) -> bytes:
     is_dw        = grade in DECISION_WINDOW_GRADES
     is_undergrad = grade in UNDERGRAD_GRADES
     domains      = ctx.get('domains', [])
-    market_data  = ctx.get('market_data', [])
 
     stage_note = (
         '12 to 18 months to make subject and application choices that matter'
@@ -655,11 +653,10 @@ def build_pdf(ctx: dict, content: dict) -> bytes:
         career_data  = content.get(f'career_{i + 1}', {})
         internships  = internships_all.get(key, [])
         next_30      = next_30_all.get(key, '')
-        market       = market_data[i] if i < len(market_data) else {}
         section_label = f'Career {i + 1} of {min(len(domains), 3)} — {domain["name"]}'
 
         _career_block(story, domain, career_data, internships, next_30,
-                      market, section_label, is_undergrad)
+                      section_label, is_undergrad)
 
     story.extend(_build_parent(content.get('parent_summary', {}), ctx))
     story.extend(_build_what_next())

@@ -27,7 +27,6 @@ load_dotenv(Path(__file__).parent.parent / '.env')
 # Add report/ dir to path so sibling imports work when called from project root
 sys.path.insert(0, str(Path(__file__).parent))
 
-from education_context import get_domain_context
 from pdf_engine import build_pdf
 from prompts import (
     GRADE_BUCKET_MAP,
@@ -223,7 +222,6 @@ def build_student_context(grade: str, answers: dict, result: dict, email: str) -
         'personal':     _flatten(answers.get('personal', [])),
         'motivations':  _flatten(answers.get('motivations', [])),
         'cog_score':    cog_score,
-        'market_data':  [get_domain_context(d.get('data_category') or d['name']) for d in domains],
     }
 
 

@@ -109,9 +109,9 @@ const cognitiveJunior = [
   },
   {
     id: 'cj3',
-    question: 'A book costs ₹80 after a 20% discount. What was the original price?',
-    options: ['₹96', '₹100', '₹95', '₹90'],
-    correct: '₹100',
+    question: 'If 3 pens cost ₹45, how much do 7 pens cost?',
+    options: ['₹85', '₹90', '₹95', '₹105'],
+    correct: '₹105',
   },
   {
     id: 'cj4',
@@ -136,6 +136,30 @@ const cognitiveJunior = [
     options: ['Plane', 'Cockpit', 'Airport', 'Sky'],
     correct: 'Cockpit',
   },
+  {
+    id: 'cj7',
+    question: 'Brush is to painter as needle is to…',
+    options: ['Thread', 'Cloth', 'Tailor', 'Stitch'],
+    correct: 'Tailor',
+  },
+  {
+    id: 'cj8',
+    question: 'Wheel is to bicycle as wing is to…',
+    options: ['Bird', 'Sky', 'Aeroplane', 'Pilot'],
+    correct: 'Aeroplane',
+  },
+  {
+    id: 'cj9',
+    question: '2 + 3 × 4 = ?',
+    options: ['14', '20', '18', '24'],
+    correct: '14',
+  },
+  {
+    id: 'cj10',
+    question: '15 − 4 + 2 = ?',
+    options: ['9', '13', '11', '17'],
+    correct: '13',
+  },
 ];
 
 const cognitiveMiddle = [
@@ -153,9 +177,9 @@ const cognitiveMiddle = [
   },
   {
     id: 'cm3',
-    question: 'A shop sells for ₹120 after 20% discount. Original price?',
-    options: ['₹140', '₹144', '₹150', '₹160'],
-    correct: '₹150',
+    question: '₹1200 is divided in the ratio 1:3. What is the larger share?',
+    options: ['₹300', '₹400', '₹800', '₹900'],
+    correct: '₹900',
   },
   {
     id: 'cm4',
@@ -176,9 +200,33 @@ const cognitiveMiddle = [
   },
   {
     id: 'cm6',
-    question: 'Thermometer is to temperature as barometer is to…',
-    options: ['Weather', 'Altitude', 'Air pressure', 'Wind'],
-    correct: 'Air pressure',
+    question: 'Pen is to writer as scalpel is to…',
+    options: ['Hospital', 'Operation', 'Surgeon', 'Medicine'],
+    correct: 'Surgeon',
+  },
+  {
+    id: 'cm7',
+    question: 'Scalpel is to surgeon as hammer is to…',
+    options: ['Nail', 'Blacksmith', 'Carpenter', 'Iron'],
+    correct: 'Carpenter',
+  },
+  {
+    id: 'cm8',
+    question: 'Camera is to photographer as microscope is to…',
+    options: ['Doctor', 'Laboratory', 'Scientist', 'Lens'],
+    correct: 'Scientist',
+  },
+  {
+    id: 'cm9',
+    question: '3 × (4 + 2) − 5 = ?',
+    options: ['13', '16', '11', '19'],
+    correct: '13',
+  },
+  {
+    id: 'cm10',
+    question: '20 ÷ (2 + 3) × 2 = ?',
+    options: ['4', '8', '10', '16'],
+    correct: '8',
   },
 ];
 
@@ -197,9 +245,9 @@ const cognitiveSenior = [
   },
   {
     id: 'cs3',
-    question: 'A invests ₹6000 for 6 months, B invests ₹4000 for 9 months. How do they share profit?',
-    options: ['1:1', '2:3', '3:4', '4:3'],
-    correct: '1:1',
+    question: 'A tap fills a tank in 6 hours. A drain empties it in 9 hours. Both open together — how long to fill the tank?',
+    options: ['12 hours', '15 hours', '18 hours', '24 hours'],
+    correct: '18 hours',
   },
   {
     id: 'cs4',
@@ -228,6 +276,18 @@ const cognitiveSenior = [
       'We cannot conclude whether any A is C',
     ],
     correct: 'We cannot conclude whether any A is C',
+  },
+  {
+    id: 'cs7',
+    question: 'Words are to poet as notes are to…',
+    options: ['Singer', 'Instrument', 'Composer', 'Orchestra'],
+    correct: 'Composer',
+  },
+  {
+    id: 'cs8',
+    question: '2 + 3² × 2 − 4 = ?',
+    options: ['14', '16', '20', '24'],
+    correct: '16',
   },
 ];
 
