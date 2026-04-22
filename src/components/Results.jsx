@@ -32,6 +32,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const BASE_PRICE = 499;
   const effectivePrice = !appliedCoupon ? BASE_PRICE
@@ -40,7 +41,36 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
     : Math.round(BASE_PRICE * (1 - appliedCoupon.discountValue / 100));
   const isFree = effectivePrice === 0;
 
-  const RAZORPAY_URL = 'https://razorpay.me/@careershifu';
+  async function handlePaidCheckout(amountRupees, type = 'report') {
+    setPaymentLoading(true);
+    try {
+      const res = await fetch('/api/payment/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amountRupees, sessionId, userId, email: userEmail, type }),
+      });
+      if (!res.ok) throw new Error('Could not create order');
+      const order = await res.json();
+
+      const rzp = new window.Razorpay({
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'CareerShifu',
+        description: type === 'retake' ? 'Assessment Retake' : 'CareerShifu Report',
+        order_id: order.orderId,
+        prefill: { email: userEmail || '' },
+        theme: { color: '#a53600' },
+        handler() { setRedeemSuccess(true); },
+        modal: { ondismiss() { setPaymentLoading(false); } },
+      });
+      rzp.on('payment.failed', () => setPaymentLoading(false));
+      rzp.open();
+    } catch (err) {
+      console.error('Checkout error:', err);
+      setPaymentLoading(false);
+    }
+  }
 
   if (!result) return (
     <div className="screen" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:'32px',textAlign:'center'}}>
@@ -283,15 +313,14 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
             {redeemLoading ? 'Confirming…' : 'Get my free CareerShifu report'}
           </button>
         ) : (
-          <a
+          <button
             className="btn-report"
-            href={RAZORPAY_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}
+            type="button"
+            disabled={paymentLoading}
+            onClick={() => handlePaidCheckout(effectivePrice, 'report')}
           >
-            Download my CareerShifu report
-          </a>
+            {paymentLoading ? 'Preparing payment…' : 'Download my CareerShifu report'}
+          </button>
         )}
 
         <p className="payment-note">
@@ -346,16 +375,14 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
               Your thinking evolves. If it's been a while or you feel the result
               didn't quite fit, a retake gives you a new read.
             </p>
-            <a
+            <button
               className="btn-report"
-              href={RAZORPAY_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: '12px' }}
-              onClick={() => setRetakeOpen(false)}
+              type="button"
+              style={{ marginBottom: '12px' }}
+              onClick={() => { setRetakeOpen(false); handlePaidCheckout(150, 'retake'); }}
             >
               Pay ₹150 and retake →
-            </a>
+            </button>
             <button
               type="button"
               onClick={() => setRetakeOpen(false)}

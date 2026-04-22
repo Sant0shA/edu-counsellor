@@ -2,13 +2,27 @@ import express from 'express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { spawn } from 'child_process';
+import crypto from 'crypto';
 import pg from 'pg';
 import { Resend } from 'resend';
+import Razorpay from 'razorpay';
 
 const { Pool } = pg;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Capture raw body for Razorpay webhook signature verification (must be before express.json)
+app.use((req, res, next) => {
+  if (req.path === '/api/payment/webhook') {
+    let raw = '';
+    req.setEncoding('utf8');
+    req.on('data', chunk => { raw += chunk; });
+    req.on('end', () => { req.rawBody = raw; next(); });
+  } else {
+    next();
+  }
+});
 
 app.use(express.json({ limit: '64kb' }));
 app.set('trust proxy', 1);
@@ -44,6 +58,10 @@ const pool = process.env.DATABASE_URL
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
+  : null;
+
+const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
+  ? new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET })
   : null;
 
 // ── DB init — ensures report_queue exists on every deploy ────────────────────
@@ -558,6 +576,79 @@ app.post('/api/coupon/redeem', async (req, res) => {
   }
 
   res.json({ ok: true });
+});
+
+// ── Payment: create Razorpay order ────────────────────────────────────────────
+app.post('/api/payment/create-order', async (req, res) => {
+  if (!razorpay) return res.status(503).json({ error: 'Payment not configured' });
+  const { amount, sessionId, userId, email, type } = req.body;
+  if (!amount || !email) return res.status(400).json({ error: 'Missing amount or email' });
+  try {
+    const order = await razorpay.orders.create({
+      amount: Math.round(Number(amount) * 100), // paise
+      currency: 'INR',
+      receipt: `cs_${type || 'report'}_${Date.now()}`,
+      notes: {
+        sessionId: String(sessionId || ''),
+        userId: String(userId || ''),
+        email,
+        type: type || 'report',
+      },
+    });
+    res.json({ orderId: order.id, amount: order.amount, currency: order.currency });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Payment: Razorpay webhook → queue report ──────────────────────────────────
+app.post('/api/payment/webhook', async (req, res) => {
+  const sig = req.headers['x-razorpay-signature'];
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret) return res.status(503).json({ error: 'Webhook secret not configured' });
+  if (!sig)    return res.status(400).json({ error: 'Missing signature' });
+
+  const expected = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+  if (sig !== expected) return res.status(400).json({ error: 'Invalid signature' });
+
+  try {
+    const event = JSON.parse(req.rawBody);
+    if (event.event === 'payment.captured') {
+      const notes = event.payload?.payment?.entity?.notes || {};
+      const { sessionId, userId, email, type } = notes;
+      const adminEmail = process.env.ADMIN_EMAIL || 'santosh.abraham@atrios.in';
+
+      if (email && pool) {
+        const queueId = await pool.query(
+          `INSERT INTO report_queue (session_id, user_id, email, status)
+           VALUES ($1, $2, $3, 'pending') RETURNING id`,
+          [sessionId ? parseInt(sessionId) : null, userId || '', email]
+        ).then(r => r.rows[0]?.id);
+
+        const amount = event.payload?.payment?.entity?.amount;
+        const amountRs = amount ? `₹${(amount / 100).toFixed(0)}` : '—';
+
+        if (resend) {
+          resend.emails.send({
+            from: 'CareerShifu <contact@careershifu.com>',
+            to: adminEmail,
+            subject: `Payment received — ${type || 'report'} ${amountRs} — ${escHtml(email)}`,
+            html: `
+              <p><strong>Email:</strong> ${escHtml(email)}</p>
+              <p><strong>Amount:</strong> ${amountRs}</p>
+              <p><strong>Type:</strong> ${escHtml(type || 'report')}</p>
+              <p><strong>User ID:</strong> ${escHtml(userId || '—')}</p>
+              <p><strong>Session ID:</strong> ${escHtml(sessionId || '—')}</p>
+              <p><strong>Queue ID:</strong> ${queueId ?? '—'}</p>`,
+          }).catch(err => console.error('Webhook admin email error:', err));
+        }
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Webhook processing error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Static files (built Vite app) ─────────────────────────────────────────────
