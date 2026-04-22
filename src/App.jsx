@@ -11,6 +11,7 @@ import { psychometric, personal, getCognitiveQuestions } from './data/questions'
 import { buildPrompt } from './data/prompt'
 import { callVEG, saveSession, fetchLatestSession } from './utils/api'
 import Returning from './components/Returning'
+import SignOutChip from './components/SignOutChip'
 
 export default function App() {
   const [screen, setScreen] = useState('intro')
@@ -48,9 +49,9 @@ export default function App() {
             setSessionId(sess.id)
             setAnswers((prev) => ({ ...prev, grade: sess.grade }))
             setScreen('returning')
-          } else {
-            setScreen('grade')
           }
+          // No session found — stay on intro; userId is already set so
+          // the next "Let's find out" click skips sign-in and goes to grade
         })
         .catch(() => {})
         .finally(() => setCheckingSession(false))
@@ -124,7 +125,15 @@ export default function App() {
   if (screen === 'intro') {
     return (
       <>
-        <Intro onStart={() => setShowSignIn(true)} />
+        <Intro onStart={() => {
+          if (userId) setScreen('grade')
+          else setShowSignIn(true)
+        }} />
+        {userId && (
+          <div style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 10 }}>
+            <SignOutChip email={userEmail} onSignOut={restart} />
+          </div>
+        )}
         {showSignIn && (
           <SignIn
             onClose={() => setShowSignIn(false)}
@@ -235,11 +244,11 @@ export default function App() {
   }
 
   if (screen === 'returning') {
-    return <Returning daysRemaining={priorSession?.daysRemaining} onViewResults={() => setScreen('results')} />
+    return <Returning daysRemaining={priorSession?.daysRemaining} userEmail={userEmail} onViewResults={() => setScreen('results')} onSignOut={restart} />
   }
 
   if (screen === 'results') {
-    return <Results result={result} sessionId={sessionId} grade={answers.grade} userId={userId} userEmail={userEmail} onRestart={restart} daysRemaining={priorSession ? priorSession.daysRemaining : null} />
+    return <Results result={result} sessionId={sessionId} grade={answers.grade} userId={userId} userEmail={userEmail} onRestart={restart} onSignOut={restart} daysRemaining={priorSession ? priorSession.daysRemaining : null} />
   }
 
   return null

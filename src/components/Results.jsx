@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import SignOutChip from './SignOutChip';
 
 const GRADE_LABELS = {
   'Class 8 or below': 'Early Explorer',
@@ -22,7 +23,7 @@ const VALUE_PROPS = [
   },
 ];
 
-export default function Results({ result, sessionId, grade, userId, userEmail, onRestart, daysRemaining }) {
+export default function Results({ result, sessionId, grade, userId, userEmail, onRestart, onSignOut, daysRemaining }) {
   const [couponOpen, setCouponOpen] = useState(false);
   const [retakeOpen, setRetakeOpen] = useState(false);
   const [couponInput, setCouponInput] = useState('');
@@ -39,11 +40,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
     : Math.round(BASE_PRICE * (1 - appliedCoupon.discountValue / 100));
   const isFree = effectivePrice === 0;
 
-  function razorpayUrl(rupees, narration) {
-    const params = new URLSearchParams({ amount: rupees * 100, description: narration });
-    if (userEmail) params.set('prefill[email]', userEmail);
-    return `https://razorpay.me/@careershifu?${params}`;
-  }
+  const RAZORPAY_URL = 'https://razorpay.me/@careershifu';
 
   if (!result) return (
     <div className="screen" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:'32px',textAlign:'center'}}>
@@ -113,6 +110,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
         <div className="results-header-right">
           {gradeLabel && <span className="grade-label-badge">{gradeLabel}</span>}
           <span className="results-badge">Your results</span>
+          {onSignOut && <SignOutChip email={userEmail} onSignOut={onSignOut} />}
         </div>
       </div>
 

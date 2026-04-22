@@ -1,10 +1,18 @@
-export default function Returning({ daysRemaining, onViewResults }) {
+import SignOutChip from './SignOutChip';
+
+export default function Returning({ daysRemaining, userEmail, onViewResults, onSignOut }) {
   return (
     <div className="screen" style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', minHeight: '100vh', padding: '40px 24px',
-      textAlign: 'center', gap: '24px',
+      textAlign: 'center', gap: '24px', position: 'relative',
     }}>
+      {onSignOut && (
+        <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
+          <SignOutChip email={userEmail} onSignOut={onSignOut} />
+        </div>
+      )}
+
       <span className="logo-text" style={{ fontSize: '18px', color: '#a53600', fontWeight: 800 }}>CareerShifu</span>
 
       <div style={{
