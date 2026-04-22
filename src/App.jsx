@@ -125,15 +125,7 @@ export default function App() {
   if (screen === 'intro') {
     return (
       <>
-        <Intro onStart={() => {
-          if (userId) setScreen('grade')
-          else setShowSignIn(true)
-        }} />
-        {userId && (
-          <div style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 10 }}>
-            <SignOutChip email={userEmail} onSignOut={restart} />
-          </div>
-        )}
+        <Intro onStart={() => setShowSignIn(true)} />
         {showSignIn && (
           <SignIn
             onClose={() => setShowSignIn(false)}
