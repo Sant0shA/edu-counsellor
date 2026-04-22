@@ -30,6 +30,35 @@ export default function App() {
   const [priorSession, setPriorSession] = useState(null)
   const [checkingSession, setCheckingSession] = useState(false)
 
+  // Restore auth from localStorage on mount and check for active session
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('cs_auth')
+      if (!saved) return
+      const { userId: uid, userEmail: em } = JSON.parse(saved)
+      if (!uid) return
+      setUserId(uid)
+      setUserEmail(em)
+      setCheckingSession(true)
+      fetchLatestSession(uid)
+        .then((sess) => {
+          if (sess) {
+            setPriorSession(sess)
+            setResult(sess.result)
+            setSessionId(sess.id)
+            setAnswers((prev) => ({ ...prev, grade: sess.grade }))
+            setScreen('returning')
+          } else {
+            setScreen('grade')
+          }
+        })
+        .catch(() => {})
+        .finally(() => setCheckingSession(false))
+    } catch {
+      localStorage.removeItem('cs_auth')
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (screen !== 'loading') return
     const prompt = buildPrompt(answers)
@@ -63,11 +92,13 @@ export default function App() {
     setPriorSession(null)
     setCheckingSession(false)
     setScreen('intro')
+    localStorage.removeItem('cs_auth')
   }
 
   async function handleVerified(uid, email) {
     setUserId(uid)
     setUserEmail(email)
+    localStorage.setItem('cs_auth', JSON.stringify({ userId: uid, userEmail: email }))
     setShowSignIn(false)
     setCheckingSession(true)
     try {

@@ -39,6 +39,12 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
     : Math.round(BASE_PRICE * (1 - appliedCoupon.discountValue / 100));
   const isFree = effectivePrice === 0;
 
+  function razorpayUrl(rupees, narration) {
+    const params = new URLSearchParams({ amount: rupees * 100, description: narration });
+    if (userEmail) params.set('prefill[email]', userEmail);
+    return `https://razorpay.me/@careershifu?${params}`;
+  }
+
   if (!result) return (
     <div className="screen" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:'32px',textAlign:'center'}}>
       <p style={{color:'#a53600',fontWeight:600,marginBottom:8}}>Something went wrong</p>
@@ -269,15 +275,25 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
               If you'd like a guided walkthrough, message us on WhatsApp to schedule a session.
             </p>
           </div>
-        ) : (
+        ) : isFree ? (
           <button
             className="btn-report"
             type="button"
             disabled={redeemLoading}
-            onClick={isFree ? handleFreeCouponRedeem : () => alert('Payment coming soon — Razorpay integration in progress.')}
+            onClick={handleFreeCouponRedeem}
           >
-            {redeemLoading ? 'Confirming…' : isFree ? 'Get my free CareerShifu report' : 'Download my CareerShifu report'}
+            {redeemLoading ? 'Confirming…' : 'Get my free CareerShifu report'}
           </button>
+        ) : (
+          <a
+            className="btn-report"
+            href={razorpayUrl(effectivePrice, 'CareerShifu Report')}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}
+          >
+            Download my CareerShifu report
+          </a>
         )}
 
         <p className="payment-note">
@@ -326,14 +342,28 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
         >
           <div className="retake-modal-card">
             <button className="modal-close" type="button" onClick={() => setRetakeOpen(false)}>✕</button>
-            <p className="retake-modal-eyebrow">Retake Test</p>
-            <h2 className="retake-modal-title">Paid retakes coming soon</h2>
+            <p className="retake-modal-eyebrow">Retake Assessment</p>
+            <h2 className="retake-modal-title">Get a fresh result — ₹150</h2>
             <p className="retake-modal-body">
-              We're setting up Razorpay payments. Once live, you'll be able to
-              retake the test for ₹150 and get a fresh result.
+              Your thinking evolves. If it's been a while or you feel the result
+              didn't quite fit, a retake gives you a new read.
             </p>
-            <button type="button" className="btn-report" onClick={() => setRetakeOpen(false)}>
-              Got it
+            <a
+              className="btn-report"
+              href={razorpayUrl(150, 'CareerShifu Assessment Retake')}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: '12px' }}
+              onClick={() => setRetakeOpen(false)}
+            >
+              Pay ₹150 and retake →
+            </a>
+            <button
+              type="button"
+              onClick={() => setRetakeOpen(false)}
+              style={{ background: 'none', border: 'none', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Not now
             </button>
           </div>
         </div>
