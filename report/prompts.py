@@ -1,4 +1,4 @@
-"""Prompt builders for the 7 CareerMap report API calls (5 Sonnet + 2 Haiku)."""
+"""Prompt builders for the 7 CareerShifu report API calls (5 Sonnet + 2 Haiku)."""
 
 GRADE_BUCKET_MAP = {
     'Class 8 or below': 'Early Explorer',
@@ -52,7 +52,7 @@ def build_system_prompt(ctx: dict) -> str:
         for i, d in enumerate(domains)
     )
 
-    return f"""You are a CareerMap report writer. You write sections of a personalised career guidance report for an Indian student.
+    return f"""You are a CareerShifu report writer. You write sections of a personalised career guidance report for an Indian student.
 
 STUDENT PROFILE:
 Grade: {grade} (Stage: {bucket})

@@ -1,15 +1,15 @@
-# CareerMap PDF Report — Prompt Specification for Claude Code
+# CareerShifu PDF Report — Prompt Specification for Claude Code
 
 **Version:** 1.0  
 **Last updated:** April 2025  
-**Purpose:** Complete specification for generating personalised CareerMap PDF reports at scale.  
+**Purpose:** Complete specification for generating personalised CareerShifu PDF reports at scale.  
 **Implementation target:** Claude Code  
 
 ---
 
 ## Overview
 
-The CareerMap report is a personalised career guidance PDF generated after a student completes a psychometric assessment. It is produced using Python and ReportLab. The report is the primary deliverable of the product — the thing the student pays for.
+The CareerShifu report is a personalised career guidance PDF generated after a student completes a psychometric assessment. It is produced using Python and ReportLab. The report is the primary deliverable of the product — the thing the student pays for.
 
 Two models are used in sequence:
 

@@ -20,7 +20,7 @@ export default function Loading() {
   return (
     <div className="screen loading-screen">
       <div className="loading-top">
-        <span className="logo-text loading-logo">CareerMap</span>
+        <span className="logo-text loading-logo">CareerShifu</span>
       </div>
 
       <div className="loading-body">

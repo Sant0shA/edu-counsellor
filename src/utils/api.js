@@ -126,7 +126,7 @@ export async function callVEG(prompt, attempt = 1) {
       Authorization: `Bearer ${key}`,
       'Content-Type': 'application/json',
       'HTTP-Referer': window.location.origin,
-      'X-Title': 'CareerMap',
+      'X-Title': 'CareerShifu',
     },
     body: JSON.stringify({
       model: 'anthropic/claude-haiku-4-5',

@@ -102,7 +102,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
   return (
     <div className="screen results-screen">
       <div className="results-header">
-        <span className="screen-logo">CareerMap</span>
+        <span className="screen-logo">CareerShifu</span>
         <div className="results-header-right">
           {gradeLabel && <span className="grade-label-badge">{gradeLabel}</span>}
           <span className="results-badge">Your results</span>
@@ -155,7 +155,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
 
             {(d.paths || []).length > 2 && (
               <a className="paths-lock-note" href="#report-card">
-                See all 5 paths in your CareerMap Report →
+                See all 5 paths in your CareerShifu Report →
               </a>
             )}
           </div>
@@ -164,7 +164,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
 
       {/* Report card */}
       <div className="report-card" id="report-card">
-        <p className="report-eyebrow">Your CareerMap Report</p>
+        <p className="report-eyebrow">Your CareerShifu Report</p>
         <h2 className="report-headline">See what your answers actually say about you</h2>
         <p className="report-sub">
           A personalised report built from your responses.
@@ -178,14 +178,14 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
           <li><span className="feat-check">✓</span> Your strengths and areas to develop — drawn from your own answers</li>
           <li><span className="feat-check">✓</span> 6–8 personalised things to try over the next 3 months</li>
           <li><span className="feat-check">✓</span> A parent summary — written for them, so you don't have to explain it yourself</li>
-          <li><span className="feat-check">✓</span> A free counsellor call within 48 hours — to help you understand your report</li>
+          <li><span className="feat-check">✓</span> Guided session available — message us on WhatsApp to schedule</li>
         </ul>
 
         <div className="counsellor-callout">
-          <span className="callout-icon">📞</span>
+          <span className="callout-icon">💬</span>
           <div>
-            <strong>Free counsellor call included</strong>
-            <p>A CareerMap counsellor will call within 48 hours to walk you through the report and answer questions.</p>
+            <strong>Guided session available</strong>
+            <p>Want help making sense of your report? Reach out on WhatsApp to schedule a session with us.</p>
           </div>
         </div>
 
@@ -200,7 +200,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
           ) : (
             <span className="price-amount">₹{BASE_PRICE}</span>
           )}
-          <span className="price-note">One time. Counsellor call included.</span>
+          <span className="price-note">One time. WhatsApp support included.</span>
         </div>
 
         {!redeemSuccess && (
@@ -253,8 +253,8 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
             <p style={{ fontSize: '22px', marginBottom: '8px' }}>✓</p>
             <p style={{ fontWeight: 700, color: 'var(--report-green-text)', marginBottom: '6px', fontSize: '15px' }}>Your report is confirmed</p>
             <p style={{ fontSize: '13px', color: 'var(--report-green-text)', lineHeight: 1.6 }}>
-              We'll send your CareerMap Report to your email within 24 hours.
-              A counsellor will call within 48 hours to walk you through it.
+              We'll send your CareerShifu Report to your email within 24 hours.
+              If you'd like a guided walkthrough, message us on WhatsApp to schedule a session.
             </p>
           </div>
         ) : (
@@ -264,7 +264,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
             disabled={redeemLoading}
             onClick={isFree ? handleFreeCouponRedeem : () => alert('Payment coming soon — Razorpay integration in progress.')}
           >
-            {redeemLoading ? 'Confirming…' : isFree ? 'Get my free CareerMap report' : 'Download my CareerMap report'}
+            {redeemLoading ? 'Confirming…' : isFree ? 'Get my free CareerShifu report' : 'Download my CareerShifu report'}
           </button>
         )}
 
@@ -305,7 +305,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
         evolving — the picture will get clearer as you grow.
       </div>
 
-      <p className="results-footer">CareerMap · Virtual Edu Guide · V1</p>
+      <p className="results-footer">CareerShifu · Virtual Edu Guide · V1</p>
     </div>
   );
 }

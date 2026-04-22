@@ -2,7 +2,7 @@ export default function Intro({ onStart }) {
   return (
     <div className="screen intro-screen">
       <div className="intro-logo">
-        <span className="logo-text">CareerMap</span>
+        <span className="logo-text">CareerShifu</span>
       </div>
 
       <div className="intro-tagline">

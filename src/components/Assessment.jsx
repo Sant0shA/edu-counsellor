@@ -32,9 +32,9 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
 
     if (prevIsMulti) {
       setSelectedMulti(lastAnswer ? lastAnswer.split(', ') : []);
-    } else {
-      setSelectedSingle(lastAnswer || null);
     }
+    // Single-select: leave blank so user picks fresh — pre-restoring caused
+    // confusion since auto-advance made it look like the click had no effect.
   }
 
   function advance(value) {
@@ -67,7 +67,7 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
   return (
     <div className="screen assessment-screen">
       <div className="screen-header">
-        <span className="screen-logo">CareerMap</span>
+        <span className="screen-logo">CareerShifu</span>
         <span className="section-tag">{tag}</span>
       </div>
 
@@ -89,7 +89,11 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
         </div>
         <h2 className="question-text">{q.question}</h2>
         <p className="question-hint">
-          {isMulti ? 'Choose 1 or 2 that resonate most' : 'Choose one'}
+          {isMulti
+            ? capReached
+              ? 'Tap a selected answer to remove it, then choose a different one'
+              : 'Choose 1 or 2 that resonate most'
+            : 'Choose one'}
         </p>
       </div>
 

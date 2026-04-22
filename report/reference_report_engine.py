@@ -461,14 +461,14 @@ def later_pages(canvas, doc):
     canvas.rect(0, H - 10*mm, W, 10*mm, fill=1, stroke=0)
     canvas.setFont("Helvetica-Bold", 8)
     canvas.setFillColor(colors.HexColor("#C7C4F0"))
-    canvas.drawString(20*mm, H - 6.5*mm, "CareerMap")
+    canvas.drawString(20*mm, H - 6.5*mm, "CareerShifu")
     canvas.setFont("Helvetica", 8)
     canvas.drawRightString(W - 20*mm, H - 6.5*mm, STUDENT["headline"])
     canvas.setFillColor(colors.HexColor("#F3F4F6"))
     canvas.rect(0, 0, W, 8*mm, fill=1, stroke=0)
     canvas.setFont("Helvetica", 7.5); canvas.setFillColor(C_MUTED)
     canvas.drawCentredString(W / 2, 3*mm,
-        f"Page {doc.page}  ·  Confidential — for student use only  ·  CareerMap 2025")
+        f"Page {doc.page}  ·  Confidential — for student use only  ·  CareerShifu 2025")
     canvas.restoreState()
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -668,7 +668,7 @@ def build_story():
 
     # ── COVER ──────────────────────────────────────────────────────────────────
     story.append(Spacer(1, 38*mm))
-    story.append(Paragraph("CareerMap", S["cover_logo"]))
+    story.append(Paragraph("CareerShifu", S["cover_logo"]))
     story.append(Paragraph("Your personalised career report", S["cover_tagline"]))
     story.append(Spacer(1, 18*mm))
     story.append(Paragraph(STUDENT["headline"], S["cover_name"]))
@@ -859,7 +859,7 @@ def build_story():
     story.append(Spacer(1, 12))
     story.append(HRFlowable(width="100%", thickness=0.5, color=C_RULE, spaceAfter=8))
     story.append(Paragraph(
-        "CareerMap 2025  ·  Confidential, for the student named on the cover only.  "
+        "CareerShifu 2025  ·  Confidential, for the student named on the cover only.  "
         "Guidance reflects general pathways across boards. "
         "Specific college options, entrance exams and cutoffs will be covered "
         "on your counsellor call.",
@@ -868,14 +868,14 @@ def build_story():
     return story
 
 # ── Generate ───────────────────────────────────────────────────────────────────
-OUT = "/mnt/user-data/outputs/CareerMap_Class1112_Final.pdf"
+OUT = "/mnt/user-data/outputs/CareerShifu_Class1112_Final.pdf"
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 doc = SimpleDocTemplate(
     OUT, pagesize=A4,
     leftMargin=20*mm, rightMargin=20*mm,
     topMargin=16*mm, bottomMargin=14*mm,
-    title="CareerMap — Story-driven explorer of human nature",
-    author="CareerMap",
+    title="CareerShifu — Story-driven explorer of human nature",
+    author="CareerShifu",
 )
 doc.build(build_story(), onFirstPage=first_page, onLaterPages=later_pages)
 print(f"Done: {OUT}")

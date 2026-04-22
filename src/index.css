@@ -418,6 +418,7 @@ p { color: var(--text); }
 .option-btn.dimmed {
   opacity: 0.38;
   cursor: default;
+  pointer-events: none;
 }
 
 /* Text input */

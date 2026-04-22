@@ -107,8 +107,9 @@ UG_AMBER_NOTE = (
 )
 
 COUNSELLOR_CALLOUT = (
-    "A CareerMap counsellor will call within 48 hours to walk you through this report. "
-    "They have read it in full. Bring your questions, your doubts, and anything that did not feel right."
+    "Want to talk through this report with someone? "
+    "Message us on WhatsApp at [WhatsApp Number] to schedule a session. "
+    "Bring your questions, your doubts, and anything that did not feel right."
 )
 
 

@@ -1,4 +1,4 @@
-"""ReportLab PDF renderer for CareerMap reports — visual layer from reference design."""
+"""ReportLab PDF renderer for CareerShifu reports — visual layer from reference design."""
 
 import io
 
@@ -154,14 +154,14 @@ def _make_later_pages(headline):
         canvas.rect(0, H_PAGE - 10*mm, W_PAGE, 10*mm, fill=1, stroke=0)
         canvas.setFont('Helvetica-Bold', 8)
         canvas.setFillColor(HexColor('#C7C4F0'))
-        canvas.drawString(20*mm, H_PAGE - 6.5*mm, 'CareerMap')
+        canvas.drawString(20*mm, H_PAGE - 6.5*mm, 'CareerShifu')
         canvas.setFont('Helvetica', 8)
         canvas.drawRightString(W_PAGE - 20*mm, H_PAGE - 6.5*mm, headline)
         canvas.setFillColor(HexColor('#F3F4F6'))
         canvas.rect(0, 0, W_PAGE, 8*mm, fill=1, stroke=0)
         canvas.setFont('Helvetica', 7.5); canvas.setFillColor(C_MUTED)
         canvas.drawCentredString(W_PAGE / 2, 3*mm,
-            f'Page {doc.page}  ·  Confidential — for student use only  ·  CareerMap 2025')
+            f'Page {doc.page}  ·  Confidential — for student use only  ·  CareerShifu 2025')
         canvas.restoreState()
     return later_pages
 
@@ -410,7 +410,7 @@ def _build_cover(ctx):
     domain_names = '\n'.join(d['name'] for d in domains[:3])
 
     story = [sp(38 * mm)]
-    story.append(Paragraph('CareerMap', S['cover_logo']))
+    story.append(Paragraph('CareerShifu', S['cover_logo']))
     story.append(Paragraph('Your personalised career report', S['cover_tagline']))
     story.append(sp(18 * mm))
     story.append(Paragraph(headline, S['cover_name']))
@@ -458,10 +458,9 @@ def _build_about(ctx):
             'internship all happen in the next 12 to 18 months. This report is designed to '
             'help you make those choices deliberately, not by default.')
 
-    callout_box(story, 'Free counsellor call included',
-        'After you read this report a counsellor will call you within 48 hours. '
-        'The call is to help you understand what is in here and decide on your next steps. '
-        'It is not a sales call.')
+    callout_box(story, 'Guided session available',
+        'Want help making sense of this report? Message us on WhatsApp at [WhatsApp Number] '
+        'to schedule a session. It is not a sales call.')
 
     items_list = [
         ('Your thinking style',
@@ -560,7 +559,7 @@ def _build_parent(data, ctx):
             story.append(sp(6))
 
     story.append(sp(8))
-    callout_box(story, 'The counsellor call', COUNSELLOR_CALLOUT)
+    callout_box(story, 'Want a guided session?', COUNSELLOR_CALLOUT)
     return story
 
 
@@ -579,9 +578,9 @@ def _build_what_next():
         ('Do the 30-day step for that career',
          'It is one specific action. It takes less than an hour to start. '
          'Do not wait until you feel ready.'),
-        ('Take the counsellor call',
-         'A counsellor will contact you within 48 hours. '
-         'The call is about this report and your next steps. Bring one question.'),
+        ('Reach out if you want guidance',
+         'Message us on WhatsApp at [WhatsApp Number] to schedule a session. '
+         'Bring one question about this report and your next steps.'),
     ]
     for num, (title, body) in enumerate(steps, 1):
         ns = ParagraphStyle('sn', fontName='Helvetica-Bold',
@@ -603,10 +602,10 @@ def _build_what_next():
     story.append(sp(12))
     story.append(HRFlowable(width='100%', thickness=0.5, color=C_RULE, spaceAfter=8))
     story.append(Paragraph(
-        'CareerMap 2025  ·  Confidential, for the student named on the cover only.  '
+        'CareerShifu 2025  ·  Confidential, for the student named on the cover only.  '
         'Guidance reflects general pathways across boards. '
-        'Specific college options, entrance exams and cutoffs will be covered '
-        'on your counsellor call.',
+        'Specific college options, entrance exams and cutoffs can be explored '
+        'in a guided session — message us on WhatsApp to schedule.',
         S['small_muted']))
     return story
 
@@ -636,8 +635,8 @@ def build_pdf(ctx: dict, content: dict) -> bytes:
         rightMargin=20 * mm,
         topMargin=16 * mm,
         bottomMargin=14 * mm,
-        title=f'CareerMap — {headline}',
-        author='CareerMap',
+        title=f'CareerShifu — {headline}',
+        author='CareerShifu',
     )
 
     story = []

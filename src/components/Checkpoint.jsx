@@ -65,7 +65,7 @@ export default function Checkpoint({ number, answers, onContinue }) {
   return (
     <div className="screen checkpoint-screen">
       <div className="screen-header">
-        <span className="screen-logo">CareerMap</span>
+        <span className="screen-logo">CareerShifu</span>
         <span className="checkpoint-badge">Checkpoint {number} of 3</span>
       </div>
 

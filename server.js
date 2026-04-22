@@ -77,7 +77,7 @@ app.post('/api/veg', async (req, res) => {
         Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://edu.atrios.in',
-        'X-Title': 'CareerMap',
+        'X-Title': 'CareerShifu',
       },
       body: JSON.stringify({
         model: 'anthropic/claude-haiku-4-5',
@@ -143,13 +143,13 @@ app.post('/api/waitlist', async (req, res) => {
 
     // Confirmation to user
     resend.emails.send({
-      from: 'CareerMap <noreply@atrios.in>',
+      from: 'CareerShifu <noreply@atrios.in>',
       to: email,
-      subject: "Your CareerMap Report — we'll be in touch",
+      subject: "Your CareerShifu Report — request received",
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
           <h2 style="margin:0 0 8px;color:#E8541A">Got it, ${safeName}.</h2>
-          <p style="margin:0 0 20px;color:#555">We'll reach out on WhatsApp (<strong>${safePhone}</strong>) to complete your order and send your report.</p>
+          <p style="margin:0 0 20px;color:#555">We'll be in touch by email to complete your order and send your report.</p>
           <p style="margin:0 0 8px;font-weight:600">Your report includes:</p>
           <ul style="padding-left:20px;color:#444;line-height:1.8">
             <li><strong>Full report PDF</strong> — Strengths, traits, all domain paths, and a parent summary</li>
@@ -157,14 +157,14 @@ app.post('/api/waitlist', async (req, res) => {
             <li><strong>Parent summary</strong> — Written for your parents so they understand where you're headed</li>
             <li><strong>All career paths unlocked</strong> — The full list of paths within every domain</li>
           </ul>
-          <p style="margin:24px 0 0;color:#888;font-size:13px">— The CareerMap team · <a href="https://edu-counsellor-production.up.railway.app" style="color:#E8541A">CareerMap</a></p>
+          <p style="margin:24px 0 0;color:#888;font-size:13px">— The CareerShifu team · <a href="https://edu-counsellor-production.up.railway.app" style="color:#E8541A">CareerShifu</a></p>
         </div>`,
     }).catch((err) => console.error('Resend user email error:', err));
 
     // Notification to admin
     const adminEmail = process.env.ADMIN_EMAIL || 'santosh.abraham@atrios.in';
     resend.emails.send({
-      from: 'CareerMap <noreply@atrios.in>',
+      from: 'CareerShifu <noreply@atrios.in>',
       to: adminEmail,
       subject: `New Pro lead: ${safeName}`,
       html: `
@@ -226,12 +226,12 @@ app.post('/api/auth/otp/send', async (req, res) => {
   // ── Send email via Resend (works with or without DB) ─────────────────────
   if (resend) {
     resend.emails.send({
-      from: 'CareerMap <noreply@atrios.in>',
+      from: 'CareerShifu <noreply@atrios.in>',
       to: email.trim(),
-      subject: 'Your CareerMap verification code',
+      subject: 'Your CareerShifu verification code',
       html: `
         <div style="font-family:sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
-          <p style="margin:0 0 8px;font-size:14px;color:#666">CareerMap · Virtual Edu Guide</p>
+          <p style="margin:0 0 8px;font-size:14px;color:#666">CareerShifu · Virtual Edu Guide</p>
           <h2 style="margin:0 0 24px;font-size:24px;color:#26215C">Your verification code</h2>
           <div style="background:#EEEDFE;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
             <span style="font-size:40px;font-weight:800;letter-spacing:8px;color:#3C3489">${code}</span>
@@ -466,14 +466,14 @@ app.post('/api/coupon/redeem', async (req, res) => {
     const safeSession = escHtml(sessionId ? String(sessionId) : '—');
 
     resend.emails.send({
-      from: 'CareerMap <noreply@atrios.in>',
+      from: 'CareerShifu <noreply@atrios.in>',
       to: email,
-      subject: 'Request Confirmed | Your CareerMap Report',
+      subject: 'Request Confirmed | Your CareerShifu Report',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
           <h2 style="margin:0 0 16px;color:#3C3489">Your request is confirmed!</h2>
           <p style="margin:0 0 16px;color:#555;line-height:1.6">
-            We are currently preparing your personalized CareerMap Report, which will be sent
+            We are currently preparing your personalized CareerShifu Report, which will be sent
             to <strong>${safeEmail}</strong> within 24 hours.
           </p>
           <p style="margin:0 0 16px;color:#555;line-height:1.6">
@@ -481,13 +481,13 @@ app.post('/api/coupon/redeem', async (req, res) => {
             as we have no intention of spamming you. We hope this report provides
             the detail and clarity you are looking for.
           </p>
-          <p style="margin:24px 0 0;color:#888;font-size:13px">Regards<br>The CareerMap Team</p>
+          <p style="margin:24px 0 0;color:#888;font-size:13px">Regards<br>The CareerShifu Team</p>
         </div>`,
     }).catch((err) => console.error('Coupon redeem user email error:', err));
 
     const adminEmail = process.env.ADMIN_EMAIL || 'santosh.abraham@atrios.in';
     resend.emails.send({
-      from: 'CareerMap <noreply@atrios.in>',
+      from: 'CareerShifu <noreply@atrios.in>',
       to: adminEmail,
       subject: `Report request: coupon ${safeCode}`,
       html: `
@@ -511,5 +511,5 @@ app.get('*', (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`CareerMap server running on port ${PORT}`);
+  console.log(`CareerShifu server running on port ${PORT}`);
 });

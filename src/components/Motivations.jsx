@@ -17,7 +17,7 @@ export default function Motivations({ onComplete }) {
   return (
     <div className="screen motivations-screen">
       <div className="screen-header">
-        <span className="screen-logo">CareerMap</span>
+        <span className="screen-logo">CareerShifu</span>
         <span className="section-tag">What matters most</span>
       </div>
 

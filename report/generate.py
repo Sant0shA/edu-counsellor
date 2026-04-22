@@ -1,5 +1,5 @@
 """
-CareerMap PDF report generator.
+CareerShifu PDF report generator.
 
 Usage:
     python3 report/generate.py --queue-id <integer>
@@ -86,7 +86,7 @@ def call_api(or_key: str, system_prompt: str, user_msg: str,
                     'Authorization': f'Bearer {or_key}',
                     'Content-Type': 'application/json',
                     'HTTP-Referer': 'https://edu.atrios.in',
-                    'X-Title': 'CareerMap',
+                    'X-Title': 'CareerShifu',
                 },
                 json={
                     'model': model,
@@ -242,16 +242,16 @@ def send_report_email(email: str, pdf_bytes: bytes):
             'Content-Type': 'application/json',
         },
         json={
-            'from': 'CareerMap <noreply@atrios.in>',
+            'from': 'CareerShifu <noreply@atrios.in>',
             'to': email,
-            'subject': 'Your CareerMap Report is attached',
+            'subject': 'Your CareerShifu Report is attached',
             'html': (
                 '<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;color:#1a1a1a">'
 
                 '<p style="margin:0 0 16px;line-height:1.7;color:#333">Hi there,</p>'
 
                 '<p style="margin:0 0 16px;line-height:1.7;color:#333">'
-                'Your personalized CareerMap Report is attached as a PDF.</p>'
+                'Your personalized CareerShifu Report is attached as a PDF.</p>'
 
                 '<p style="margin:0 0 16px;line-height:1.7;color:#333">'
                 'We suggest reading it through once without any pressure&#8202;&#8212;&#8202;simply note what resonates '
@@ -268,7 +268,7 @@ def send_report_email(email: str, pdf_bytes: bytes):
                 '<p style="margin:0 0 6px;line-height:1.7;color:#333">'
                 'If you&#8217;d like to explore this guided solution, simply reach out to us:</p>'
                 '<p style="margin:0 0 20px;line-height:1.7;color:#333">'
-                '&#128172; Message us on WhatsApp at <strong>[Number]</strong></p>'
+                '&#128172; Message us on WhatsApp at <strong>[WhatsApp Number]</strong></p>'
 
                 '<hr style="border:none;border-top:1px solid #e8e8e8;margin:20px 0">'
 
@@ -279,12 +279,12 @@ def send_report_email(email: str, pdf_bytes: bytes):
                 'direction!</p>'
 
                 '<p style="margin:0;line-height:1.7;color:#333">Best regards,<br>'
-                '<strong>The CareerMap Team</strong></p>'
+                '<strong>The CareerShifu Team</strong></p>'
                 '</div>'
             ),
             'attachments': [
                 {
-                    'filename': 'CareerMap-Report.pdf',
+                    'filename': 'CareerShifu-Report.pdf',
                     'content': pdf_b64,
                 }
             ],

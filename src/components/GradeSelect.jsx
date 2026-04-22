@@ -18,7 +18,7 @@ export default function GradeSelect({ onComplete }) {
 
   return (
     <div className="screen grade-screen">
-      <span className="screen-logo">CareerMap</span>
+      <span className="screen-logo">CareerShifu</span>
       <div className="grade-intro">
         <p className="grade-intro-tag">Before we begin</p>
         <h1 className="grade-intro-title">Where are you in your studies right now?</h1>
