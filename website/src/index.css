@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Outfit', 'Helvetica Neue', Arial, sans-serif;
+
+  --color-brand-orange: #E8541A;
+  --color-brand-orange-light: #FFF0EB;
+  --color-brand-bg: #FFF8F5;
+  --color-brand-text: #1A1A1A;
+  --color-brand-muted: #666666;
+  --color-brand-border: #E8E0DA;
+  --color-brand-purple: #3C3489;
+  --color-brand-purple-light: #EEEDFE;
+  --color-brand-amber: #FAEEDA;
+  --color-brand-amber-text: #633806;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-brand-bg text-brand-text font-sans antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-bold tracking-tight;
+  }
+}
+
+.geometric-card {
+  @apply bg-white border border-brand-border rounded-xl p-6 transition-transform duration-200;
+}
+
+.primary-button {
+  @apply bg-brand-orange text-white px-8 py-3 rounded-xl font-bold transition-all shadow-[0_4px_0_#c2410c] active:translate-y-[2px] active:shadow-[0_2px_0_#c2410c];
+}
+
+.secondary-button {
+  @apply bg-white text-brand-text border-2 border-brand-border px-8 py-3 rounded-xl font-bold transition-all hover:bg-brand-bg active:scale-95;
+}
+
+.badge-orange {
+  @apply uppercase text-[10px] font-bold tracking-[0.2em] text-brand-orange;
+}
+
+.badge-purple {
+  @apply uppercase text-[10px] font-bold tracking-[0.2em] text-brand-purple;
+}
