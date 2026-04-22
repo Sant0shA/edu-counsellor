@@ -285,7 +285,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
         ) : (
           <a
             className="btn-report"
-            href={razorpayUrl(effectivePrice, 'CareerShifu Report')}
+            href={RAZORPAY_URL}
             target="_blank"
             rel="noopener noreferrer"
             style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}
@@ -348,7 +348,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
             </p>
             <a
               className="btn-report"
-              href={razorpayUrl(150, 'CareerShifu Assessment Retake')}
+              href={RAZORPAY_URL}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: '12px' }}
