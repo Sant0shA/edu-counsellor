@@ -675,7 +675,7 @@ app.post('/api/payment/webhook', async (req, res) => {
         const queueId = await pool.query(
           `INSERT INTO report_queue (session_id, user_id, email, status)
            VALUES ($1, $2, $3, 'pending') RETURNING id`,
-          [sessionId ? parseInt(sessionId) : null, userId || '', email]
+          [(() => { const n = parseInt(sessionId, 10); return isNaN(n) ? null : n; })(), userId || '', email]
         ).then(r => r.rows[0]?.id);
 
         // Spawn PDF generator — fire-and-forget
