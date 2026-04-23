@@ -144,7 +144,22 @@ async function initDb() {
       VALUES ('ZING@498', 'flat', 498, 10)
       ON CONFLICT (code) DO NOTHING
     `);
-    console.log('[db] coupons table + seed ready');
+    // Nudge coupon — ₹100 off, high volume
+    await pool.query(`
+      INSERT INTO coupons (code, type, discount_value, max_uses)
+      VALUES ('SAVE100', 'flat', 100, 10000)
+      ON CONFLICT (code) DO NOTHING
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS nudge_log (
+        id        SERIAL PRIMARY KEY,
+        email     TEXT    NOT NULL,
+        nudge_day INTEGER NOT NULL,
+        sent_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (email, nudge_day)
+      )
+    `);
+    console.log('[db] coupons + nudge_log ready');
   } catch (err) {
     console.error('[db] initDb failed:', err.message);
   }
@@ -804,6 +819,101 @@ app.post('/api/payment/webhook', async (req, res) => {
   }
 });
 
+// ── Nudge emails: day 7 / 15 / 25 for users who haven't downloaded their report ─
+const NUDGE_CONFIGS = [
+  {
+    day: 7,
+    subject: 'You figured out how you think. Here\'s what comes next.',
+    html: (email) => `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;color:#1a1a1a">
+        <p style="margin:0 0 6px;font-size:13px;color:#a53600;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">CareerShifu</p>
+        <h2 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#1f1b18;line-height:1.3">You figured out how you think.<br>Here's what comes next.</h2>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">A week ago you mapped how you actually think, what kind of problems pull you in, and what matters to you. Most people don't do that — they follow the nearest path, not the right one.</p>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">Your CareerShifu Report takes those signals further — into specific career domains, all 5 paths per domain (you've only seen 2), stream and subject guidance, and a parent summary so that conversation doesn't have to start from scratch.</p>
+        <p style="margin:0 0 24px;line-height:1.7;color:#333">Use code <strong style="color:#a53600;font-size:16px">SAVE100</strong> at checkout — ₹100 off, brings it to <strong>₹399</strong>.</p>
+        <a href="https://careershifu.com" style="display:inline-block;background:#a53600;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:24px">Get my CareerShifu Report — ₹399 →</a>
+        <p style="margin:0 0 4px;font-size:13px;color:#888">Your results are valid for 30 days from when you took the assessment.</p>
+        <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
+        <p style="margin:0;font-size:13px;color:#aaa">CareerShifu · <a href="https://careershifu.com" style="color:#aaa">careershifu.com</a></p>
+      </div>`,
+  },
+  {
+    day: 15,
+    subject: '15 days left. Your results + ₹100 off.',
+    html: (email) => `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;color:#1a1a1a">
+        <p style="margin:0 0 6px;font-size:13px;color:#a53600;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">CareerShifu</p>
+        <h2 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#1f1b18;line-height:1.3">You're halfway through your window.</h2>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">15 days left before your CareerShifu results expire. The thinking you put into that assessment — how you solve problems, what pulls your attention, what you actually care about — is sitting there, specific to you.</p>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">The full report takes it from "interesting" to "here's what to actually do" — with stream guidance, career paths mapped to how you think, and a parent summary built from your answers.</p>
+        <p style="margin:0 0 24px;line-height:1.7;color:#333">Code <strong style="color:#a53600;font-size:16px">SAVE100</strong> still works — <strong>₹399 today</strong>.</p>
+        <a href="https://careershifu.com" style="display:inline-block;background:#a53600;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:24px">Claim my report before it expires →</a>
+        <p style="margin:0 0 4px;font-size:13px;color:#888">Results expire 30 days from your assessment date.</p>
+        <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
+        <p style="margin:0;font-size:13px;color:#aaa">CareerShifu · <a href="https://careershifu.com" style="color:#aaa">careershifu.com</a></p>
+      </div>`,
+  },
+  {
+    day: 25,
+    subject: 'Last reminder: 5 days left before your results expire',
+    html: (email) => `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;color:#1a1a1a">
+        <p style="margin:0 0 6px;font-size:13px;color:#a53600;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">CareerShifu · Final reminder</p>
+        <h2 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#1f1b18;line-height:1.3">5 days left.<br>Then your results are gone.</h2>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">This is the last time we'll write about this.</p>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">Your CareerShifu results expire in 5 days. After that, the session closes and you'd need to take the assessment again. If you've been on the fence — this is the moment.</p>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">The report gives you the full picture: all 15 career paths across your 3 domains, a thinking-style breakdown, stream and subject guidance, a 30-day action plan, and a parent summary written so you don't have to explain it yourself.</p>
+        <p style="margin:0 0 24px;line-height:1.7;color:#333">Code <strong style="color:#a53600;font-size:16px">SAVE100</strong> is still valid — <strong>₹399</strong>. Final 5 days.</p>
+        <a href="https://careershifu.com" style="display:inline-block;background:#a53600;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:24px">Get the report — last chance →</a>
+        <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
+        <p style="margin:0;font-size:13px;color:#aaa">CareerShifu · <a href="https://careershifu.com" style="color:#aaa">careershifu.com</a></p>
+      </div>`,
+  },
+];
+
+async function runNudgeCheck() {
+  if (!pool || !resend) return;
+  for (const { day, subject, html } of NUDGE_CONFIGS) {
+    try {
+      const { rows } = await pool.query(
+        `SELECT DISTINCT LOWER(u.email) AS email
+         FROM sessions s
+         JOIN users u ON u.id::TEXT = s.user_id
+         WHERE s.created_at BETWEEN now() - INTERVAL '${day} days' - INTERVAL '12 hours'
+                                AND now() - INTERVAL '${day} days' + INTERVAL '12 hours'
+           AND NOT EXISTS (
+             SELECT 1 FROM report_queue rq
+             WHERE LOWER(rq.email) = LOWER(u.email) AND rq.status = 'done'
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM nudge_log nl
+             WHERE LOWER(nl.email) = LOWER(u.email) AND nl.nudge_day = ${day}
+           )`
+      );
+      console.log(`[nudge] day ${day}: ${rows.length} email(s) to send`);
+      for (const { email } of rows) {
+        try {
+          await resend.emails.send({
+            from: 'CareerShifu <contact@careershifu.com>',
+            to: email,
+            subject,
+            html: html(email),
+          });
+          await pool.query(
+            'INSERT INTO nudge_log (email, nudge_day) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [email, day]
+          );
+          console.log(`[nudge] day ${day} sent to ${email}`);
+        } catch (err) {
+          console.error(`[nudge] day ${day} failed for ${email}:`, err.message);
+        }
+      }
+    } catch (err) {
+      console.error(`[nudge] day ${day} query failed:`, err.message);
+    }
+  }
+}
+
 // ── Static files (built Vite app) ─────────────────────────────────────────────
 app.use(express.static(join(__dirname, 'dist')));
 
@@ -816,4 +926,11 @@ initDb().then(() => {
   app.listen(PORT, () => {
     console.log(`CareerShifu server running on port ${PORT}`);
   });
+  if (pool && resend) {
+    // Run immediately on startup, then every 6 hours
+    runNudgeCheck().catch(err => console.error('[nudge] startup run failed:', err.message));
+    setInterval(() => {
+      runNudgeCheck().catch(err => console.error('[nudge] scheduled run failed:', err.message));
+    }, 6 * 60 * 60 * 1000);
+  }
 });
