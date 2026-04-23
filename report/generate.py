@@ -291,11 +291,17 @@ def send_report_email(email: str, pdf_bytes: bytes):
 
                 '<hr style="border:none;border-top:1px solid #e8e8e8;margin:20px 0">'
 
-                '<p style="margin:0 0 6px;font-weight:600;color:#1a1a1a">Help a friend out</p>'
+                '<p style="margin:0 0 6px;font-weight:600;color:#1a1a1a">Know someone figuring out their path?</p>'
+                '<p style="margin:0 0 16px;line-height:1.7;color:#333">'
+                'Most people who find this useful know at least one other person &#8212; a sibling, a cousin, '
+                'a friend &#8212; who\'s in the same spot. Someone who\'d benefit from seeing their own thinking '
+                'mapped out, not just a list of popular careers.</p>'
+                '<p style="margin:0 0 16px;line-height:1.7;color:#333">'
+                'Share <a href="https://careershifu.com" style="color:#a53600">careershifu.com</a> with them '
+                'and ask them to use code <strong style="color:#a53600;font-size:15px">GOAL26</strong> at '
+                'checkout &#8212; &#8377;100 off their report.</p>'
                 '<p style="margin:0 0 24px;line-height:1.7;color:#333">'
-                'If you found this report detailed and helpful, please consider sharing it with your friends or school '
-                'groups. A quick share could help a fellow student choose the right career path and find their own '
-                'direction!</p>'
+                'Tell them it\'s worth the 5 minutes.</p>'
 
                 '<p style="margin:0;line-height:1.7;color:#333">Best regards,<br>'
                 '<strong>The CareerShifu Team</strong></p>'

@@ -150,6 +150,12 @@ async function initDb() {
       VALUES ('SAVE100', 'flat', 100, 10000)
       ON CONFLICT (code) DO NOTHING
     `);
+    // Referral coupon — ₹100 off, included in report delivery email
+    await pool.query(`
+      INSERT INTO coupons (code, type, discount_value, max_uses)
+      VALUES ('GOAL26', 'flat', 100, 10000)
+      ON CONFLICT (code) DO NOTHING
+    `);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS nudge_log (
         id        SERIAL PRIMARY KEY,
