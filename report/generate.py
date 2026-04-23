@@ -287,7 +287,7 @@ def send_report_email(email: str, pdf_bytes: bytes):
                 '<p style="margin:0 0 6px;line-height:1.7;color:#333">'
                 'If you&#8217;d like to explore this guided solution, simply reach out to us:</p>'
                 '<p style="margin:0 0 20px;line-height:1.7;color:#333">'
-                '&#128172; Message us on WhatsApp at <strong>[WhatsApp Number]</strong></p>'
+                '&#128172; Message us on WhatsApp at <strong><a href="https://wa.me/919004493138">+91 90044 93138</a></strong></p>'
 
                 '<hr style="border:none;border-top:1px solid #e8e8e8;margin:20px 0">'
 
