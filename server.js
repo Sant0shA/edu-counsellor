@@ -81,6 +81,17 @@ async function initDb() {
       )
     `);
     console.log('[db] report_queue table ready');
+    // Migrate report_queue.user_id from UUID → TEXT if created with wrong type
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF (SELECT data_type FROM information_schema.columns
+            WHERE table_name='report_queue' AND column_name='user_id') = 'uuid' THEN
+          ALTER TABLE report_queue ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+        END IF;
+      END;
+      $$
+    `);
     await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id TEXT`);
     // Migrate INTEGER → TEXT if the column was previously created as INTEGER
     await pool.query(`
