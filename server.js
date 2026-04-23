@@ -161,20 +161,23 @@ app.post('/api/session', async (req, res) => {
 });
 
 // ── Latest session for a user (30-day window) ─────────────────────────────────
+// Looks up by email (JOIN with users) as primary key — more reliable than user_id
+// which can be null if the integer didn't save correctly.
 app.get('/api/session/latest', async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DB not configured' });
-  const userId = parseInt(req.query.userId, 10);
-  if (!userId || isNaN(userId)) return res.status(400).json({ error: 'Missing userId' });
+  const email = (req.query.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ error: 'Missing email' });
 
   try {
     const { rows } = await pool.query(
-      `SELECT id, grade, result, created_at
-       FROM sessions
-       WHERE user_id = $1
-         AND created_at > now() - INTERVAL '30 days'
-       ORDER BY created_at DESC
+      `SELECT s.id, s.grade, s.result, s.created_at
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       WHERE u.email = $1
+         AND s.created_at > now() - INTERVAL '30 days'
+       ORDER BY s.created_at DESC
        LIMIT 1`,
-      [userId]
+      [email]
     );
     if (rows.length === 0) return res.json({ session: null });
 
@@ -629,6 +632,7 @@ app.post('/api/payment/webhook', async (req, res) => {
         const amountRs = amount ? `₹${(amount / 100).toFixed(0)}` : '—';
 
         if (resend) {
+          // Admin notification
           resend.emails.send({
             from: 'CareerShifu <contact@careershifu.com>',
             to: adminEmail,
@@ -641,6 +645,18 @@ app.post('/api/payment/webhook', async (req, res) => {
               <p><strong>Session ID:</strong> ${escHtml(sessionId || '—')}</p>
               <p><strong>Queue ID:</strong> ${queueId ?? '—'}</p>`,
           }).catch(err => console.error('Webhook admin email error:', err));
+
+          // Customer confirmation
+          resend.emails.send({
+            from: 'CareerShifu <contact@careershifu.com>',
+            to: email,
+            subject: 'Your CareerShifu Report is on its way',
+            html: `
+              <p>Hi,</p>
+              <p>We've received your payment of ${amountRs}. Your personalised CareerShifu Report will be sent to this email within 24 hours.</p>
+              <p>If you have any questions, just reply to this email.</p>
+              <p>— CareerShifu Team</p>`,
+          }).catch(err => console.error('Webhook customer email error:', err));
         }
       }
     }

@@ -41,7 +41,7 @@ export default function App() {
       setUserId(uid)
       setUserEmail(em)
       setCheckingSession(true)
-      fetchLatestSession(uid)
+      fetchLatestSession(em)
         .then((sess) => {
           if (sess) {
             setPriorSession(sess)
@@ -50,8 +50,6 @@ export default function App() {
             setAnswers((prev) => ({ ...prev, grade: sess.grade }))
             setScreen('returning')
           }
-          // No session found — stay on intro; userId is already set so
-          // the next "Let's find out" click skips sign-in and goes to grade
         })
         .catch(() => {})
         .finally(() => setCheckingSession(false))
@@ -103,7 +101,7 @@ export default function App() {
     setShowSignIn(false)
     setCheckingSession(true)
     try {
-      const sess = await fetchLatestSession(uid)
+      const sess = await fetchLatestSession(email)
       if (sess) {
         setPriorSession(sess)
         setResult(sess.result)

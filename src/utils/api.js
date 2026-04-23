@@ -67,10 +67,11 @@ export async function saveSession(grade, answers, result, userId) {
   } catch { return null; }
 }
 
-export async function fetchLatestSession(userId) {
+export async function fetchLatestSession(email) {
   if (!import.meta.env.PROD) return null;
+  if (!email) return null;
   try {
-    const res = await fetch(`/api/session/latest?userId=${userId}`);
+    const res = await fetch(`/api/session/latest?email=${encodeURIComponent(email)}`);
     if (!res.ok) return null;
     const data = await res.json();
     return data.session ?? null;
