@@ -92,6 +92,18 @@ async function initDb() {
       END;
       $$
     `);
+    // Migrate report_queue.session_id from INTEGER → TEXT if needed
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF (SELECT data_type FROM information_schema.columns
+            WHERE table_name='report_queue' AND column_name='session_id') = 'integer' THEN
+          ALTER TABLE report_queue DROP CONSTRAINT IF EXISTS report_queue_session_id_fkey;
+          ALTER TABLE report_queue ALTER COLUMN session_id TYPE TEXT USING session_id::TEXT;
+        END IF;
+      END;
+      $$
+    `);
     await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id TEXT`);
     // Migrate INTEGER → TEXT if the column was previously created as INTEGER
     await pool.query(`
@@ -675,7 +687,7 @@ app.post('/api/payment/webhook', async (req, res) => {
         const queueId = await pool.query(
           `INSERT INTO report_queue (session_id, user_id, email, status)
            VALUES ($1, $2, $3, 'pending') RETURNING id`,
-          [(() => { const n = parseInt(sessionId, 10); return isNaN(n) ? null : n; })(), userId || '', email]
+          [sessionId || null, userId || '', email]
         ).then(r => r.rows[0]?.id);
 
         // Spawn PDF generator — fire-and-forget

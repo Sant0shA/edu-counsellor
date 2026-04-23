@@ -165,7 +165,26 @@ def load_queue_row(conn, queue_id: int) -> dict:
         row = cur.fetchone()
     if not row:
         raise RuntimeError(f'No report_queue row for id={queue_id}')
-    return {'session_id': str(row[0]), 'user_id': row[1], 'email': row[2]}
+    return {'session_id': row[0], 'user_id': row[1], 'email': row[2]}
+
+
+def load_latest_session_by_email(conn, email: str) -> dict:
+    with conn.cursor() as cur:
+        cur.execute(
+            '''SELECT s.grade, s.answers, s.result
+               FROM sessions s
+               JOIN users u ON u.id::TEXT = s.user_id
+               WHERE LOWER(u.email) = LOWER(%s)
+               ORDER BY s.created_at DESC LIMIT 1''',
+            (email,)
+        )
+        row = cur.fetchone()
+    if not row:
+        raise RuntimeError(f'No session found for email={email}')
+    grade   = row[0]
+    answers = row[1] if isinstance(row[1], dict) else json.loads(row[1])
+    result  = row[2] if isinstance(row[2], dict) else json.loads(row[2])
+    return {'grade': grade, 'answers': answers, 'result': result}
 
 
 def load_session(conn, session_id: str) -> dict:
@@ -312,7 +331,10 @@ def main():
 
         # Load data
         queue_row   = load_queue_row(conn, queue_id)
-        session_row = load_session(conn, queue_row['session_id'])
+        if queue_row['session_id'] is not None:
+            session_row = load_session(conn, queue_row['session_id'])
+        else:
+            session_row = load_latest_session_by_email(conn, queue_row['email'])
 
         ctx = build_student_context(
             grade   = session_row['grade'],
