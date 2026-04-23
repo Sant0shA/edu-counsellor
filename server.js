@@ -12,19 +12,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Capture raw body for Razorpay webhook signature verification (must be before express.json)
+// Capture raw body for Razorpay webhook — collect Buffers, never setEncoding (breaks body-parser)
 app.use((req, res, next) => {
-  if (req.path === '/api/payment/webhook') {
-    let raw = '';
-    req.setEncoding('utf8');
-    req.on('data', chunk => { raw += chunk; });
-    req.on('end', () => { req.rawBody = raw; next(); });
-  } else {
-    next();
-  }
+  if (req.path !== '/api/payment/webhook') return next();
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
+  req.on('end', () => { req.rawBody = Buffer.concat(chunks).toString('utf8'); next(); });
 });
 
-app.use(express.json({ limit: '64kb' }));
+// Skip express.json for webhook — stream already consumed above
+app.use((req, res, next) => {
+  if (req.rawBody !== undefined) return next();
+  express.json({ limit: '64kb' })(req, res, next);
+});
 app.set('trust proxy', 1);
 
 // ── HTML-escape user input before embedding in email templates ────────────────
@@ -81,7 +81,18 @@ async function initDb() {
       )
     `);
     console.log('[db] report_queue table ready');
-    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id INTEGER`);
+    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id TEXT`);
+    // Migrate INTEGER → TEXT if the column was previously created as INTEGER
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF (SELECT data_type FROM information_schema.columns
+            WHERE table_name='sessions' AND column_name='user_id') = 'integer' THEN
+          ALTER TABLE sessions ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT;
+        END IF;
+      END;
+      $$
+    `);
     console.log('[db] sessions.user_id column ready');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS coupons (
@@ -180,7 +191,7 @@ app.post('/api/session', async (req, res) => {
   try {
     const { rows } = await pool.query(
       'INSERT INTO sessions (grade, answers, result, user_id) VALUES ($1, $2, $3, $4) RETURNING id',
-      [grade, answers, result, userId ? parseInt(userId, 10) : null]
+      [grade, answers, result, userId || null]
     );
     res.json({ sessionId: rows[0].id });
   } catch (err) {
@@ -200,7 +211,7 @@ app.get('/api/session/latest', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT s.id, s.grade, s.result, s.created_at
        FROM sessions s
-       JOIN users u ON u.id = s.user_id
+       JOIN users u ON u.id::TEXT = s.user_id
        WHERE u.email = $1
          AND s.created_at > now() - INTERVAL '30 days'
        ORDER BY s.created_at DESC
