@@ -628,6 +628,27 @@ app.post('/api/payment/webhook', async (req, res) => {
           [sessionId ? parseInt(sessionId) : null, userId || '', email]
         ).then(r => r.rows[0]?.id);
 
+        // Spawn PDF generator — fire-and-forget
+        if (queueId != null) {
+          const child = spawn(
+            'python3',
+            [join(__dirname, 'report/generate.py'), '--queue-id', String(queueId)],
+            { detached: true, stdio: 'ignore', env: { ...process.env } },
+          );
+          child.on('error', (err) => {
+            console.error(`[report] spawn failed for queue_id=${queueId}: ${err.message}`);
+            if (pool) {
+              pool.query(
+                "UPDATE report_queue SET status = 'failed', error = $1, updated_at = now() WHERE id = $2",
+                [err.message, queueId],
+              ).catch(() => {});
+            }
+          });
+          child.unref();
+        } else {
+          console.error(`[report] queueId is null — PDF will not be generated for email=${email}`);
+        }
+
         const amount = event.payload?.payment?.entity?.amount;
         const amountRs = amount ? `₹${(amount / 100).toFixed(0)}` : '—';
 
