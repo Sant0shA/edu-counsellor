@@ -932,6 +932,24 @@ initDb().then(() => {
   app.listen(PORT, () => {
     console.log(`CareerShifu server running on port ${PORT}`);
   });
+  // On startup, re-process any queue rows stuck in pending/generating (killed by prior deploy)
+  if (pool) {
+    pool.query(
+      `SELECT id FROM report_queue WHERE status IN ('pending', 'generating') AND updated_at < now() - INTERVAL '3 minutes'`
+    ).then(({ rows }) => {
+      if (rows.length === 0) return;
+      console.log(`[startup] recovering ${rows.length} stuck report(s)`);
+      for (const { id } of rows) {
+        pool.query("UPDATE report_queue SET status = 'pending', updated_at = now() WHERE id = $1", [id]).catch(() => {});
+        const child = spawn('python3', [join(__dirname, 'report/generate.py'), '--queue-id', String(id)],
+          { detached: true, stdio: 'ignore', env: { ...process.env } });
+        child.on('error', err => console.error(`[startup] recovery spawn failed for id=${id}:`, err.message));
+        child.unref();
+        console.log(`[startup] re-spawned generate.py for queue_id=${id}`);
+      }
+    }).catch(err => console.error('[startup] recovery query failed:', err.message));
+  }
+
   if (pool && resend) {
     // Run immediately on startup, then every 6 hours
     runNudgeCheck().catch(err => console.error('[nudge] startup run failed:', err.message));
