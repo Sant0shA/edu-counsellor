@@ -26,7 +26,6 @@ const VALUE_PROPS = [
 
 export default function Results({ result, sessionId, grade, userId, userEmail, onRestart, onSignOut, daysRemaining }) {
   const [couponOpen, setCouponOpen] = useState(false);
-  const [retakeOpen, setRetakeOpen] = useState(false);
   const [couponInput, setCouponInput] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState('');
@@ -180,9 +179,6 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
           <span className="prior-result-days">
             {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining to view this result
           </span>
-          <button type="button" className="btn-retake" onClick={() => setRetakeOpen(true)}>
-            Retake for ₹150
-          </button>
         </div>
       )}
 
@@ -416,37 +412,6 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
         </svg>
       </a>
 
-      {retakeOpen && (
-        <div
-          className="retake-modal-overlay"
-          onClick={(e) => e.target === e.currentTarget && setRetakeOpen(false)}
-        >
-          <div className="retake-modal-card">
-            <button className="modal-close" type="button" onClick={() => setRetakeOpen(false)}>✕</button>
-            <p className="retake-modal-eyebrow">Retake Assessment</p>
-            <h2 className="retake-modal-title">Get a fresh result — ₹150</h2>
-            <p className="retake-modal-body">
-              Your thinking evolves. If it's been a while or you feel the result
-              didn't quite fit, a retake gives you a new read.
-            </p>
-            <button
-              className="btn-report"
-              type="button"
-              style={{ marginBottom: '12px' }}
-              onClick={() => { setRetakeOpen(false); handlePaidCheckout(150, 'retake'); }}
-            >
-              Pay ₹150 and retake →
-            </button>
-            <button
-              type="button"
-              onClick={() => setRetakeOpen(false)}
-              style={{ background: 'none', border: 'none', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline' }}
-            >
-              Not now
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
