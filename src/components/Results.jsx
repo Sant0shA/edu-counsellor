@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SignOutChip from './SignOutChip';
+import { checkReportStatus, resendReport } from '../utils/api';
 
 const GRADE_LABELS = {
   'Class 8 or below': 'Early Explorer',
@@ -33,6 +34,36 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [reportSent, setReportSent] = useState(null); // null=checking, false=not sent, true=sent
+  const [resendCooldownSecs, setResendCooldownSecs] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
+
+  useEffect(() => {
+    if (!userEmail) { setReportSent(false); return; }
+    checkReportStatus(userEmail).then(({ sent, secondsUntilResend }) => {
+      setReportSent(sent);
+      if (sent && secondsUntilResend > 0) setResendCooldownSecs(secondsUntilResend);
+    });
+  }, [userEmail]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (resendCooldownSecs <= 0) return;
+    const t = setInterval(() => setResendCooldownSecs(s => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldownSecs]);
+
+  async function handleResend() {
+    setResendLoading(true);
+    try {
+      await resendReport(userEmail);
+      setResendDone(true);
+      setResendCooldownSecs(30 * 60);
+    } catch (err) {
+      if (err.secondsRemaining) setResendCooldownSecs(err.secondsRemaining);
+    }
+    setResendLoading(false);
+  }
 
   const BASE_PRICE = 499;
   const effectivePrice = !appliedCoupon ? BASE_PRICE
@@ -294,40 +325,45 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
           </div>
         )}
 
-        {redeemSuccess ? (
+        {(redeemSuccess || reportSent) ? (
           <div className="coupon-success-card">
             <p style={{ fontSize: '22px', marginBottom: '8px' }}>✓</p>
-            <p style={{ fontWeight: 700, color: 'var(--report-green-text)', marginBottom: '6px', fontSize: '15px' }}>Your report is confirmed</p>
-            <p style={{ fontSize: '13px', color: 'var(--report-green-text)', lineHeight: 1.6 }}>
-              We'll send your CareerShifu Report to your email within 24 hours.
-              If you'd like a guided walkthrough, message us on WhatsApp to schedule a session.
+            <p style={{ fontWeight: 700, color: 'var(--report-green-text)', marginBottom: '6px', fontSize: '15px' }}>Your CareerShifu Report has been sent</p>
+            <p style={{ fontSize: '13px', color: 'var(--report-green-text)', lineHeight: 1.6, marginBottom: '14px' }}>
+              Check your inbox — it may be in <strong>Spam or Promotions</strong>.
             </p>
+            {resendDone ? (
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Resent ✓ — check Spam / Promotions if you don't see it.</p>
+            ) : (
+              <button
+                type="button"
+                disabled={resendCooldownSecs > 0 || resendLoading}
+                onClick={handleResend}
+                style={{ background: 'none', border: '1px solid var(--report-green-text)', borderRadius: 8, padding: '8px 18px', cursor: resendCooldownSecs > 0 ? 'default' : 'pointer', fontSize: '13px', color: 'var(--report-green-text)', opacity: resendCooldownSecs > 0 ? 0.55 : 1 }}
+              >
+                {resendLoading ? 'Sending…'
+                  : resendCooldownSecs > 0 ? `Resend in ${Math.floor(resendCooldownSecs / 60)}:${String(resendCooldownSecs % 60).padStart(2, '0')}`
+                  : 'Resend report to my email'}
+              </button>
+            )}
           </div>
-        ) : isFree ? (
-          <button
-            className="btn-report"
-            type="button"
-            disabled={redeemLoading}
-            onClick={handleFreeCouponRedeem}
-          >
-            {redeemLoading ? 'Confirming…' : 'Get my free CareerShifu report'}
-          </button>
-        ) : (
-          <button
-            className="btn-report"
-            type="button"
-            disabled={paymentLoading}
-            onClick={() => handlePaidCheckout(effectivePrice, 'report')}
-          >
-            {paymentLoading ? 'Preparing payment…' : 'Download my CareerShifu report'}
-          </button>
-        )}
-
-        <p className="payment-note">
-          {isFree ? 'Report sent to your email within 24 hours' : 'Secure payment · PDF to your email instantly'}
-        </p>
-
-        <p className="urgency-note">Your session expires in 48 hours</p>
+        ) : reportSent === false ? (
+          <>
+            {isFree ? (
+              <button className="btn-report" type="button" disabled={redeemLoading} onClick={handleFreeCouponRedeem}>
+                {redeemLoading ? 'Confirming…' : 'Get my free CareerShifu report'}
+              </button>
+            ) : (
+              <button className="btn-report" type="button" disabled={paymentLoading} onClick={() => handlePaidCheckout(effectivePrice, 'report')}>
+                {paymentLoading ? 'Preparing payment…' : 'Download my CareerShifu report'}
+              </button>
+            )}
+            <p className="payment-note">
+              {isFree ? 'Report sent to your email within 24 hours' : 'Secure payment · PDF to your email instantly'}
+            </p>
+            <p className="urgency-note">Your session expires in 48 hours</p>
+          </>
+        ) : null}
 
         <div className="testimonials">
           {VALUE_PROPS.map((v, i) => (

@@ -643,6 +643,60 @@ app.post('/api/coupon/redeem', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Report: status check + resend ────────────────────────────────────────────
+app.get('/api/report/status', async (req, res) => {
+  if (!pool) return res.json({ sent: false });
+  const email = (req.query.email || '').trim().toLowerCase();
+  if (!email) return res.json({ sent: false });
+  try {
+    const { rows } = await pool.query(
+      `SELECT updated_at FROM report_queue
+       WHERE LOWER(email) = $1 AND status = 'done'
+       ORDER BY updated_at DESC LIMIT 1`,
+      [email]
+    );
+    if (rows.length === 0) return res.json({ sent: false });
+    const elapsed = Date.now() - new Date(rows[0].updated_at).getTime();
+    const cooldownMs = 30 * 60 * 1000;
+    const secondsUntilResend = elapsed >= cooldownMs ? 0 : Math.ceil((cooldownMs - elapsed) / 1000);
+    res.json({ sent: true, secondsUntilResend });
+  } catch { res.json({ sent: false }); }
+});
+
+app.post('/api/report/resend', async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'DB not configured' });
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Missing email' });
+  const normalEmail = email.trim().toLowerCase();
+  try {
+    const { rows } = await pool.query(
+      `SELECT session_id, user_id, updated_at FROM report_queue
+       WHERE LOWER(email) = $1 AND status = 'done'
+       ORDER BY updated_at DESC LIMIT 1`,
+      [normalEmail]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'No completed report found.' });
+    const elapsed = Date.now() - new Date(rows[0].updated_at).getTime();
+    const cooldownMs = 30 * 60 * 1000;
+    if (elapsed < cooldownMs) {
+      return res.status(429).json({ error: 'Too soon to resend.', secondsRemaining: Math.ceil((cooldownMs - elapsed) / 1000) });
+    }
+    const { rows: qRows } = await pool.query(
+      `INSERT INTO report_queue (session_id, user_id, email, status)
+       VALUES ($1, $2, $3, 'pending') RETURNING id`,
+      [rows[0].session_id, rows[0].user_id, normalEmail]
+    );
+    const queueId = qRows[0]?.id;
+    if (queueId) {
+      const child = spawn('python3', [join(__dirname, 'report/generate.py'), '--queue-id', String(queueId)],
+        { detached: true, stdio: 'ignore', env: { ...process.env } });
+      child.on('error', err => console.error(`[report] resend spawn failed: ${err.message}`));
+      child.unref();
+    }
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Payment: create Razorpay order ────────────────────────────────────────────
 app.post('/api/payment/create-order', async (req, res) => {
   if (!razorpay) return res.status(503).json({ error: 'Payment not configured' });

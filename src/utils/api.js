@@ -78,6 +78,31 @@ export async function fetchLatestSession(email) {
   } catch { return null; }
 }
 
+export async function checkReportStatus(email) {
+  if (!import.meta.env.PROD) return { sent: false };
+  if (!email) return { sent: false };
+  try {
+    const res = await fetch(`/api/report/status?email=${encodeURIComponent(email)}`);
+    if (!res.ok) return { sent: false };
+    return await res.json();
+  } catch { return { sent: false }; }
+}
+
+export async function resendReport(email) {
+  const res = await fetch('/api/report/resend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || 'Failed to resend');
+    err.secondsRemaining = data.secondsRemaining;
+    throw err;
+  }
+  return data;
+}
+
 export async function submitProInterest({ name, phone, email, grade, sessionId }) {
   const res = await fetch('/api/waitlist', {
     method: 'POST',
