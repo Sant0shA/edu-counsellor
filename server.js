@@ -83,6 +83,34 @@ async function initDb() {
     console.log('[db] report_queue table ready');
     await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id INTEGER`);
     console.log('[db] sessions.user_id column ready');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS coupons (
+        id             SERIAL PRIMARY KEY,
+        code           TEXT        UNIQUE NOT NULL,
+        type           TEXT        NOT NULL DEFAULT 'flat',
+        discount_value INTEGER     NOT NULL DEFAULT 0,
+        active         BOOLEAN     NOT NULL DEFAULT true,
+        uses_count     INTEGER     NOT NULL DEFAULT 0,
+        max_uses       INTEGER     NOT NULL DEFAULT 1,
+        expires_at     TIMESTAMPTZ
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS coupon_redemptions (
+        id         SERIAL PRIMARY KEY,
+        coupon_id  INTEGER     NOT NULL,
+        user_id    TEXT        NOT NULL,
+        session_id INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    // Seed test coupon — ₹498 off, 10 uses
+    await pool.query(`
+      INSERT INTO coupons (code, type, discount_value, max_uses)
+      VALUES ('ZING@498', 'flat', 498, 10)
+      ON CONFLICT (code) DO NOTHING
+    `);
+    console.log('[db] coupons table + seed ready');
   } catch (err) {
     console.error('[db] initDb failed:', err.message);
   }
@@ -409,7 +437,7 @@ app.post('/api/coupon/validate', async (req, res) => {
   const normalCode = code.trim().toUpperCase();
 
   // Alphanumeric only, max 20 chars
-  if (!/^[A-Z0-9]{1,20}$/.test(normalCode)) {
+  if (!/^[A-Z0-9@]{1,20}$/.test(normalCode)) {
     return res.status(400).json({ valid: false, error: 'Invalid coupon code format.' });
   }
 
@@ -455,7 +483,7 @@ app.post('/api/coupon/redeem', async (req, res) => {
   }
 
   const normalCode = code.trim().toUpperCase();
-  if (!/^[A-Z0-9]{1,20}$/.test(normalCode)) {
+  if (!/^[A-Z0-9@]{1,20}$/.test(normalCode)) {
     return res.status(400).json({ error: 'Invalid coupon code format.' });
   }
 
