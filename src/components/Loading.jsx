@@ -27,6 +27,9 @@ export default function Loading() {
         <div className="spinner" />
         <p className="loading-label">Your Virtual Edu Guide is thinking</p>
         <p className="loading-msg">{MESSAGES[msgIndex]}</p>
+        <p style={{ fontSize: '12px', color: 'rgba(89,65,57,0.5)', marginTop: '16px' }}>
+          Keep this tab open — results take about 20 seconds
+        </p>
       </div>
     </div>
   );

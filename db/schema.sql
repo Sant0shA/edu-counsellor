@@ -66,3 +66,10 @@ CREATE TABLE IF NOT EXISTS report_queue (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Performance indexes
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id          ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_created_at       ON sessions(created_at);
+CREATE INDEX IF NOT EXISTS idx_report_queue_email_status ON report_queue(LOWER(email), status);
+CREATE INDEX IF NOT EXISTS idx_otp_codes_email           ON otp_codes(email, used, expires_at);
+CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_user   ON coupon_redemptions(user_id);

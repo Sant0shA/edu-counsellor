@@ -38,10 +38,12 @@ function escHtml(str) {
 }
 
 // ── In-memory rate-limit state ────────────────────────────────────────────────
-const otpSendLog    = new Map(); // email → lastSentMs
-const otpAttempts   = new Map(); // email → { count, windowStart }
-const vegRateLog          = new Map(); // ip    → { count, windowStart }
-const couponValidateLog   = new Map(); // ip    → { count, windowStart }
+const otpSendLog        = new Map(); // email → lastSentMs
+const otpAttempts       = new Map(); // email → { count, windowStart }
+const vegRateLog        = new Map(); // ip    → { count, windowStart }
+const couponValidateLog = new Map(); // ip    → { count, windowStart }
+const sessionRateLog    = new Map(); // ip    → { count, windowStart }
+const redeemRateLog     = new Map(); // ip    → { count, windowStart }
 
 const OTP_SEND_COOLDOWN_MS   = 60 * 1000;
 const OTP_ATTEMPT_WINDOW_MS  = 15 * 60 * 1000;
@@ -50,10 +52,34 @@ const VEG_WINDOW_MS          = 60 * 1000;
 const VEG_MAX_PER_WINDOW     = 10;
 const COUPON_WINDOW_MS       = 60 * 1000;
 const COUPON_MAX_PER_WINDOW  = 10;
+const SESSION_WINDOW_MS      = 60 * 1000;
+const SESSION_MAX            = 60;  // school networks share a single IP
+const REDEEM_WINDOW_MS       = 60 * 1000;
+const REDEEM_MAX             = 10;
+
+// ── Test email bypass ─────────────────────────────────────────────────────────
+// santosh180181@gmail.com is always free; add extras via TEST_EMAILS env var (comma-separated)
+function isTestEmail(email) {
+  if (!email) return false;
+  const normalized = String(email).trim().toLowerCase();
+  if (normalized === 'santosh180181@gmail.com') return true;
+  if (!process.env.TEST_EMAILS) return false;
+  return process.env.TEST_EMAILS.split(',').map(e => e.trim().toLowerCase()).includes(normalized);
+}
+
+// ── Report concurrency state ──────────────────────────────────────────────────
+let activeReports = 0;
+const MAX_CONCURRENT_REPORTS = 20;
 
 // ── Postgres + Resend clients ─────────────────────────────────────────────────
 const pool = process.env.DATABASE_URL
-  ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      max: 15,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    })
   : null;
 
 const resend = process.env.RESEND_API_KEY
@@ -63,6 +89,77 @@ const resend = process.env.RESEND_API_KEY
 const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
   ? new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET })
   : null;
+
+// ── Admin alert (uses existing Resend) ───────────────────────────────────────
+async function sendAdminAlert(type, queueId) {
+  if (!resend || !pool) return;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, email, status, error, created_at FROM report_queue WHERE id = $1`,
+      [queueId]
+    );
+    const r = rows[0];
+    if (!r) return;
+    const adminEmail = process.env.ADMIN_EMAIL || 'santosh.abraham@atrios.in';
+    await resend.emails.send({
+      from: 'CareerShifu <contact@careershifu.com>',
+      to: adminEmail,
+      subject: `[CareerShifu] Report ${type} — ${r.email}`,
+      html: `<p><b>Queue ID:</b> ${r.id}<br><b>Student:</b> ${escHtml(r.email)}<br><b>Status:</b> ${r.status}<br><b>Error:</b> ${escHtml(r.error || '—')}<br><b>Created:</b> ${r.created_at}</p>`,
+    });
+  } catch (err) {
+    console.error(`[alert] failed to send ${type} alert for queue_id=${queueId}:`, err.message);
+  }
+}
+
+// ── Report spawn + concurrency-capped queue drain ────────────────────────────
+function spawnReport(queueId) {
+  activeReports++;
+  const child = spawn(
+    'python3',
+    [join(__dirname, 'report/generate.py'), '--queue-id', String(queueId)],
+    { detached: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env } }
+  );
+  child.stdout.on('data', d => console.log(`[report ${queueId}]`, d.toString().trim()));
+  child.stderr.on('data', d => console.error(`[report ${queueId}]`, d.toString().trim()));
+  child.on('close', async (code) => {
+    activeReports--;
+    if (code !== 0) sendAdminAlert('failed', queueId).catch(() => {});
+    drainReportQueue().catch(() => {});
+  });
+  child.on('error', async (err) => {
+    activeReports--;
+    console.error(`[report ${queueId}] spawn error:`, err.message);
+    if (pool) {
+      pool.query(
+        "UPDATE report_queue SET status = 'failed', error = $1, updated_at = now() WHERE id = $2",
+        [err.message, queueId]
+      ).catch(() => {});
+    }
+    sendAdminAlert('failed', queueId).catch(() => {});
+    drainReportQueue().catch(() => {});
+  });
+  child.unref();
+}
+
+async function drainReportQueue() {
+  if (!pool || activeReports >= MAX_CONCURRENT_REPORTS) return;
+  const slots = MAX_CONCURRENT_REPORTS - activeReports;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE report_queue SET status = 'generating', updated_at = now()
+       WHERE id IN (
+         SELECT id FROM report_queue WHERE status = 'pending'
+         ORDER BY created_at LIMIT $1
+       ) RETURNING id`,
+      [slots]
+    );
+    if (rows.length > 0) console.log(`[drain] active=${activeReports} spawning=${rows.length}`);
+    for (const { id } of rows) spawnReport(id);
+  } catch (err) {
+    console.error('[drain] queue drain failed:', err.message);
+  }
+}
 
 // ── DB init — ensures report_queue exists on every deploy ────────────────────
 async function initDb() {
@@ -156,6 +253,12 @@ async function initDb() {
       VALUES ('GOAL26', 'flat', 100, 10000)
       ON CONFLICT (code) DO NOTHING
     `);
+    // Internal test coupon — free, unlimited uses, for santosh180181@gmail.com
+    await pool.query(`
+      INSERT INTO coupons (code, type, discount_value, max_uses)
+      VALUES ('S@NT1801', 'free', 0, 99999)
+      ON CONFLICT (code) DO NOTHING
+    `);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS nudge_log (
         id        SERIAL PRIMARY KEY,
@@ -166,6 +269,12 @@ async function initDb() {
       )
     `);
     console.log('[db] coupons + nudge_log ready');
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_sessions_user_id           ON sessions(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_sessions_created_at        ON sessions(created_at)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_report_queue_email_status  ON report_queue(LOWER(email), status)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_otp_codes_email            ON otp_codes(email, used, expires_at)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_user    ON coupon_redemptions(user_id)`);
+    console.log('[db] indexes ready');
   } catch (err) {
     console.error('[db] initDb failed:', err.message);
   }
@@ -229,6 +338,18 @@ app.post('/api/veg', async (req, res) => {
 // ── Save session ─────────────────────────────────────────────────────────────
 app.post('/api/session', async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DB not configured' });
+
+  const ip = req.ip || 'unknown';
+  const sEntry = sessionRateLog.get(ip) || { count: 0, windowStart: Date.now() };
+  if (Date.now() - sEntry.windowStart > SESSION_WINDOW_MS) {
+    sEntry.count = 0; sEntry.windowStart = Date.now();
+  }
+  if (++sEntry.count > SESSION_MAX) {
+    sessionRateLog.set(ip, sEntry);
+    return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
+  }
+  sessionRateLog.set(ip, sEntry);
+
   const { grade, answers, result, userId } = req.body;
   if (!answers || !result) return res.status(400).json({ error: 'Missing data' });
 
@@ -307,19 +428,19 @@ app.post('/api/waitlist', async (req, res) => {
     resend.emails.send({
       from: 'CareerShifu <contact@careershifu.com>',
       to: email,
-      subject: "Your CareerShifu Report — request received",
+      subject: "Your CareerShifu Report: request received",
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
           <h2 style="margin:0 0 8px;color:#E8541A">Got it, ${safeName}.</h2>
           <p style="margin:0 0 20px;color:#555">We'll be in touch by email to complete your order and send your report.</p>
           <p style="margin:0 0 8px;font-weight:600">Your report includes:</p>
           <ul style="padding-left:20px;color:#444;line-height:1.8">
-            <li><strong>Full report PDF</strong> — Strengths, traits, all domain paths, and a parent summary</li>
-            <li><strong>Activity tracker</strong> — 6–8 things to do over the next 3 months, mapped to your results</li>
-            <li><strong>Parent summary</strong> — Written for your parents so they understand where you're headed</li>
-            <li><strong>All career paths unlocked</strong> — The full list of paths within every domain</li>
+            <li><strong>Full report PDF</strong>: Strengths, traits, all domain paths, and a parent summary</li>
+            <li><strong>Activity tracker</strong>: 6-8 things to do over the next 3 months, mapped to your results</li>
+            <li><strong>Parent summary</strong>: Written for your parents so they understand where you're headed</li>
+            <li><strong>All career paths unlocked</strong>: The full list of paths within every domain</li>
           </ul>
-          <p style="margin:24px 0 0;color:#888;font-size:13px">— The CareerShifu team · <a href="https://edu-counsellor-production.up.railway.app" style="color:#E8541A">CareerShifu</a></p>
+          <p style="margin:24px 0 0;color:#888;font-size:13px">The CareerShifu team · <a href="https://app.careershifu.com" style="color:#E8541A">CareerShifu</a></p>
         </div>`,
     }).catch((err) => console.error('Resend user email error:', err));
 
@@ -484,7 +605,7 @@ app.post('/api/coupon/validate', async (req, res) => {
   }
   couponValidateLog.set(ip, cvEntry);
 
-  const { code, userId } = req.body;
+  const { code, userId, email } = req.body || {};
   if (!code || typeof code !== 'string') {
     return res.status(400).json({ valid: false, error: 'Enter a coupon code.' });
   }
@@ -512,7 +633,8 @@ app.post('/api/coupon/validate', async (req, res) => {
     }
 
     // If userId provided, check prior redemption (any coupon — 1 report per account)
-    if (userId) {
+    // Bypass for test emails so they can re-run unlimited times
+    if (userId && !isTestEmail(email)) {
       const { rows: used } = await pool.query(
         'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
         [String(userId)]
@@ -531,6 +653,17 @@ app.post('/api/coupon/validate', async (req, res) => {
 // ── Coupon: redeem (consumes a use, triggers report delivery) ─────────────────
 app.post('/api/coupon/redeem', async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DB not configured' });
+
+  const ip = req.ip || 'unknown';
+  const rEntry = redeemRateLog.get(ip) || { count: 0, windowStart: Date.now() };
+  if (Date.now() - rEntry.windowStart > REDEEM_WINDOW_MS) {
+    rEntry.count = 0; rEntry.windowStart = Date.now();
+  }
+  if (++rEntry.count > REDEEM_MAX) {
+    redeemRateLog.set(ip, rEntry);
+    return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
+  }
+  redeemRateLog.set(ip, rEntry);
 
   const { code, userId, sessionId, email } = req.body;
   if (!code || !userId || !email) {
@@ -565,13 +698,16 @@ app.post('/api/coupon/redeem', async (req, res) => {
     const couponId = rows[0].id;
 
     // Check not already redeemed by this user (any coupon — 1 report per account)
-    const { rows: alreadyUsed } = await client.query(
-      'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
-      [String(userId)]
-    );
-    if (alreadyUsed.length > 0) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'A report has already been redeemed on this account.' });
+    // Bypass for test emails so they can re-run unlimited times
+    if (!isTestEmail(email)) {
+      const { rows: alreadyUsed } = await client.query(
+        'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
+        [String(userId)]
+      );
+      if (alreadyUsed.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'A report has already been redeemed on this account.' });
+      }
     }
 
     // Increment uses_count
@@ -599,23 +735,9 @@ app.post('/api/coupon/redeem', async (req, res) => {
     client.release();
   }
 
-  // Spawn PDF generator — fire-and-forget
+  // Trigger queue drain — spawns immediately if a slot is free, queues otherwise
   if (queueId != null) {
-    const child = spawn(
-      'python3',
-      [join(__dirname, 'report/generate.py'), '--queue-id', String(queueId)],
-      { detached: true, stdio: 'ignore', env: { ...process.env } },
-    );
-    child.on('error', (err) => {
-      console.error(`[report] spawn failed for queue_id=${queueId}: ${err.message}`);
-      if (pool) {
-        pool.query(
-          "UPDATE report_queue SET status = 'failed', error = $1, updated_at = now() WHERE id = $2",
-          [err.message, queueId],
-        ).catch(() => {});
-      }
-    });
-    child.unref();
+    drainReportQueue().catch(() => {});
   } else {
     console.error(`[report] queueId is null — PDF will not be generated for email=${email}`);
   }
@@ -708,12 +830,7 @@ app.post('/api/report/resend', async (req, res) => {
       [rows[0].session_id, rows[0].user_id, normalEmail]
     );
     const queueId = qRows[0]?.id;
-    if (queueId) {
-      const child = spawn('python3', [join(__dirname, 'report/generate.py'), '--queue-id', String(queueId)],
-        { detached: true, stdio: 'ignore', env: { ...process.env } });
-      child.on('error', err => console.error(`[report] resend spawn failed: ${err.message}`));
-      child.unref();
-    }
+    if (queueId) drainReportQueue().catch(() => {});
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -765,23 +882,8 @@ app.post('/api/payment/webhook', async (req, res) => {
           [sessionId || null, userId || '', email]
         ).then(r => r.rows[0]?.id);
 
-        // Spawn PDF generator — fire-and-forget
         if (queueId != null) {
-          const child = spawn(
-            'python3',
-            [join(__dirname, 'report/generate.py'), '--queue-id', String(queueId)],
-            { detached: true, stdio: 'ignore', env: { ...process.env } },
-          );
-          child.on('error', (err) => {
-            console.error(`[report] spawn failed for queue_id=${queueId}: ${err.message}`);
-            if (pool) {
-              pool.query(
-                "UPDATE report_queue SET status = 'failed', error = $1, updated_at = now() WHERE id = $2",
-                [err.message, queueId],
-              ).catch(() => {});
-            }
-          });
-          child.unref();
+          drainReportQueue().catch(() => {});
         } else {
           console.error(`[report] queueId is null — PDF will not be generated for email=${email}`);
         }
@@ -834,13 +936,13 @@ const NUDGE_CONFIGS = [
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;color:#1a1a1a">
         <p style="margin:0 0 6px;font-size:13px;color:#a53600;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">CareerShifu</p>
         <h2 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#1f1b18;line-height:1.3">You figured out how you think.<br>Here's what comes next.</h2>
-        <p style="margin:0 0 16px;line-height:1.7;color:#333">A week ago you mapped how you actually think, what kind of problems pull you in, and what matters to you. Most people don't do that — they follow the nearest path, not the right one.</p>
-        <p style="margin:0 0 16px;line-height:1.7;color:#333">Your CareerShifu Report takes those signals further — into specific career domains, all 5 paths per domain (you've only seen 2), stream and subject guidance, and a parent summary so that conversation doesn't have to start from scratch.</p>
-        <p style="margin:0 0 24px;line-height:1.7;color:#333">Use code <strong style="color:#a53600;font-size:16px">SAVE100</strong> at checkout — ₹100 off, brings it to <strong>₹399</strong>.</p>
-        <a href="https://careershifu.com" style="display:inline-block;background:#a53600;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:24px">Get my CareerShifu Report — ₹399 →</a>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">A week ago you mapped how you actually think, what kind of problems pull you in, and what matters to you. Most people don't do that. They follow the nearest path, not the right one.</p>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">Your CareerShifu Report takes those signals further: specific career domains, all 5 paths per domain (you've only seen 2), stream and subject guidance, and a parent summary so that conversation doesn't have to start from scratch.</p>
+        <p style="margin:0 0 24px;line-height:1.7;color:#333">Use code <strong style="color:#a53600;font-size:16px">SAVE100</strong> at checkout: ₹100 off, brings it to <strong>₹399</strong>.</p>
+        <a href="https://app.careershifu.com" style="display:inline-block;background:#a53600;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:24px">Get my CareerShifu Report: ₹399 →</a>
         <p style="margin:0 0 4px;font-size:13px;color:#888">Your results are valid for 30 days from when you took the assessment.</p>
         <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
-        <p style="margin:0;font-size:13px;color:#aaa">CareerShifu · <a href="https://careershifu.com" style="color:#aaa">careershifu.com</a></p>
+        <p style="margin:0;font-size:13px;color:#aaa">CareerShifu · <a href="https://app.careershifu.com" style="color:#aaa">app.careershifu.com</a></p>
       </div>`,
   },
   {
@@ -850,13 +952,13 @@ const NUDGE_CONFIGS = [
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;color:#1a1a1a">
         <p style="margin:0 0 6px;font-size:13px;color:#a53600;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">CareerShifu</p>
         <h2 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#1f1b18;line-height:1.3">You're halfway through your window.</h2>
-        <p style="margin:0 0 16px;line-height:1.7;color:#333">15 days left before your CareerShifu results expire. The thinking you put into that assessment — how you solve problems, what pulls your attention, what you actually care about — is sitting there, specific to you.</p>
-        <p style="margin:0 0 16px;line-height:1.7;color:#333">The full report takes it from "interesting" to "here's what to actually do" — with stream guidance, career paths mapped to how you think, and a parent summary built from your answers.</p>
-        <p style="margin:0 0 24px;line-height:1.7;color:#333">Code <strong style="color:#a53600;font-size:16px">SAVE100</strong> still works — <strong>₹399 today</strong>.</p>
-        <a href="https://careershifu.com" style="display:inline-block;background:#a53600;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:24px">Claim my report before it expires →</a>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">15 days left before your CareerShifu results expire. The thinking you put into that assessment: how you solve problems, what pulls your attention, what you actually care about. It's sitting there, specific to you.</p>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">The full report takes it from "interesting" to "here's what to actually do": stream guidance, career paths mapped to how you think, and a parent summary built from your answers.</p>
+        <p style="margin:0 0 24px;line-height:1.7;color:#333">Code <strong style="color:#a53600;font-size:16px">SAVE100</strong> still works: <strong>₹399 today</strong>.</p>
+        <a href="https://app.careershifu.com" style="display:inline-block;background:#a53600;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:24px">Claim my report before it expires →</a>
         <p style="margin:0 0 4px;font-size:13px;color:#888">Results expire 30 days from your assessment date.</p>
         <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
-        <p style="margin:0;font-size:13px;color:#aaa">CareerShifu · <a href="https://careershifu.com" style="color:#aaa">careershifu.com</a></p>
+        <p style="margin:0;font-size:13px;color:#aaa">CareerShifu · <a href="https://app.careershifu.com" style="color:#aaa">app.careershifu.com</a></p>
       </div>`,
   },
   {
@@ -867,12 +969,12 @@ const NUDGE_CONFIGS = [
         <p style="margin:0 0 6px;font-size:13px;color:#a53600;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">CareerShifu · Final reminder</p>
         <h2 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#1f1b18;line-height:1.3">5 days left.<br>Then your results are gone.</h2>
         <p style="margin:0 0 16px;line-height:1.7;color:#333">This is the last time we'll write about this.</p>
-        <p style="margin:0 0 16px;line-height:1.7;color:#333">Your CareerShifu results expire in 5 days. After that, the session closes and you'd need to take the assessment again. If you've been on the fence — this is the moment.</p>
+        <p style="margin:0 0 16px;line-height:1.7;color:#333">Your CareerShifu results expire in 5 days. After that, the session closes and you'd need to take the assessment again. If you've been on the fence, this is the moment.</p>
         <p style="margin:0 0 16px;line-height:1.7;color:#333">The report gives you the full picture: all 15 career paths across your 3 domains, a thinking-style breakdown, stream and subject guidance, a 30-day action plan, and a parent summary written so you don't have to explain it yourself.</p>
-        <p style="margin:0 0 24px;line-height:1.7;color:#333">Code <strong style="color:#a53600;font-size:16px">SAVE100</strong> is still valid — <strong>₹399</strong>. Final 5 days.</p>
-        <a href="https://careershifu.com" style="display:inline-block;background:#a53600;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:24px">Get the report — last chance →</a>
+        <p style="margin:0 0 24px;line-height:1.7;color:#333">Code <strong style="color:#a53600;font-size:16px">SAVE100</strong> is still valid: <strong>₹399</strong>. Final 5 days.</p>
+        <a href="https://app.careershifu.com" style="display:inline-block;background:#a53600;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:700;font-size:15px;margin-bottom:24px">Get the report: last chance →</a>
         <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
-        <p style="margin:0;font-size:13px;color:#aaa">CareerShifu · <a href="https://careershifu.com" style="color:#aaa">careershifu.com</a></p>
+        <p style="margin:0;font-size:13px;color:#aaa">CareerShifu · <a href="https://app.careershifu.com" style="color:#aaa">app.careershifu.com</a></p>
       </div>`,
   },
 ];
@@ -920,6 +1022,22 @@ async function runNudgeCheck() {
   }
 }
 
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get('/api/health', async (req, res) => {
+  if (!pool) return res.json({ status: 'ok', db: false, activeReports });
+  try {
+    const { rows } = await pool.query(
+      `SELECT status, COUNT(*) AS count FROM report_queue
+       WHERE created_at > now() - INTERVAL '24 hours'
+       GROUP BY status`
+    );
+    const queue = Object.fromEntries(rows.map(r => [r.status, parseInt(r.count)]));
+    res.json({ status: 'ok', db: true, activeReports, queue });
+  } catch (err) {
+    res.status(500).json({ status: 'error', error: err.message });
+  }
+});
+
 // ── Static files (built Vite app) ─────────────────────────────────────────────
 app.use(express.static(join(__dirname, 'dist')));
 
@@ -932,26 +1050,51 @@ initDb().then(() => {
   app.listen(PORT, () => {
     console.log(`CareerShifu server running on port ${PORT}`);
   });
-  // On startup, re-process any queue rows stuck in pending/generating (killed by prior deploy)
+
+  // Drain pending reports on startup and every 30s
+  drainReportQueue().catch(err => console.error('[drain] startup drain failed:', err.message));
+  setInterval(() => {
+    drainReportQueue().catch(err => console.error('[drain] interval failed:', err.message));
+  }, 30_000);
+
+  // Alert on reports stuck in 'generating' >30 min (process died without updating status)
   if (pool) {
-    pool.query(
-      `SELECT id FROM report_queue WHERE status IN ('pending', 'generating') AND updated_at < now() - INTERVAL '3 minutes'`
-    ).then(({ rows }) => {
-      if (rows.length === 0) return;
-      console.log(`[startup] recovering ${rows.length} stuck report(s)`);
-      for (const { id } of rows) {
-        pool.query("UPDATE report_queue SET status = 'pending', updated_at = now() WHERE id = $1", [id]).catch(() => {});
-        const child = spawn('python3', [join(__dirname, 'report/generate.py'), '--queue-id', String(id)],
-          { detached: true, stdio: 'ignore', env: { ...process.env } });
-        child.on('error', err => console.error(`[startup] recovery spawn failed for id=${id}:`, err.message));
-        child.unref();
-        console.log(`[startup] re-spawned generate.py for queue_id=${id}`);
+    setInterval(async () => {
+      try {
+        const { rows } = await pool.query(
+          `UPDATE report_queue SET status = 'failed', error = 'stuck >30min', updated_at = now()
+           WHERE status = 'generating' AND updated_at < now() - INTERVAL '30 minutes'
+           RETURNING id`
+        );
+        for (const { id } of rows) {
+          console.error(`[stuck] queue_id=${id} was generating >30min, marked failed`);
+          sendAdminAlert('stuck', id).catch(() => {});
+        }
+      } catch (err) {
+        console.error('[stuck] check failed:', err.message);
       }
-    }).catch(err => console.error('[startup] recovery query failed:', err.message));
+    }, 30 * 60 * 1000);
   }
 
+  // Prune stale rate-limit map entries every 15 minutes
+  setInterval(() => {
+    const now = Date.now();
+    for (const [map, windowMs] of [
+      [otpSendLog,        OTP_SEND_COOLDOWN_MS],
+      [otpAttempts,       OTP_ATTEMPT_WINDOW_MS],
+      [vegRateLog,        VEG_WINDOW_MS],
+      [couponValidateLog, COUPON_WINDOW_MS],
+      [sessionRateLog,    SESSION_WINDOW_MS],
+      [redeemRateLog,     REDEEM_WINDOW_MS],
+    ]) {
+      for (const [k, v] of map) {
+        const ts = typeof v === 'number' ? v : v.windowStart;
+        if (now - ts > windowMs * 2) map.delete(k);
+      }
+    }
+  }, 15 * 60 * 1000);
+
   if (pool && resend) {
-    // Run immediately on startup, then every 6 hours
     runNudgeCheck().catch(err => console.error('[nudge] startup run failed:', err.message));
     setInterval(() => {
       runNudgeCheck().catch(err => console.error('[nudge] scheduled run failed:', err.message));

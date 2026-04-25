@@ -327,7 +327,9 @@ export const personal = [
     question: 'Which subjects actually get you going?',
     hint: 'Choose 1 or 2 that resonate most',
     options: [
-      'Science or Maths',
+      'Maths or Statistics',
+      'Physics or Chemistry',
+      'Biology or Life Sciences',
       'Arts, Music or Writing',
       'Business or Economics',
       'Tech or Computers',
@@ -350,14 +352,17 @@ export const personal = [
   {
     id: 'pe3',
     type: 'options',
+    maxSelect: 3,
     question: 'What do you spend most free time on?',
-    hint: 'Choose 1 or 2 that resonate most',
+    hint: 'Choose up to 3 that resonate',
     options: [
       'Gaming or building with tech',
       'Creating — art, music, writing, video',
       'Sports or staying physically active',
       'Reading or going deep on topics I care about',
       'Talking to people or being out in the world',
+      'Following news, debates or how society works',
+      'Figuring out how businesses, money or markets work',
     ],
   },
   {
@@ -371,6 +376,7 @@ export const personal = [
       'A designer, filmmaker or artist',
       'A coach, teacher or social worker',
       'A journalist, writer or storyteller',
+      'A lawyer, activist or policy maker',
     ],
   },
   {
@@ -408,10 +414,26 @@ export const personal = [
     hint: 'This is the most honest career signal there is',
     options: [
       'Designing or building things that don\'t exist yet',
-      'Understanding why people think and behave the way they do',
-      'Making complex systems work better',
+      'Understanding how people feel and how to help them',
+      'Making organisations and businesses work more effectively',
       'Creating things that move or connect people',
       'Researching and discovering things not yet known',
+      'Understanding why rules exist — and how to make them fairer',
+    ],
+  },
+  {
+    id: 'pe8',
+    type: 'options',
+    singleSelect: true,
+    question: 'Which of these would bother you most to never understand?',
+    hint: 'Go with your gut — there is no right answer',
+    options: [
+      'How living things actually work — bodies, ecosystems, disease',
+      'Why some businesses and economies grow while others collapse',
+      'Why certain rules and laws exist — and who has the power to change them',
+      'Why the universe follows precise mathematical and physical laws',
+      'How to build reliable things — systems, machines, software',
+      'What makes people feel understood, seen, or connected',
     ],
   },
 ];

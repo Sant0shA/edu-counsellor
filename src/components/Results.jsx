@@ -121,9 +121,9 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
       const res = await fetch('/api/coupon/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: trimmed, userId: userId || '' }),
+        body: JSON.stringify({ code: trimmed, userId: userId || '', email: userEmail || '' }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!data.valid) {
         setCouponError(data.error || 'Invalid coupon code.');
         setAppliedCoupon(null);
@@ -132,7 +132,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
         setCouponError('');
       }
     } catch {
-      setCouponError('Could not apply coupon. Please try again.');
+      setCouponError('Network error. Please check your connection and try again.');
     }
     setCouponLoading(false);
   }

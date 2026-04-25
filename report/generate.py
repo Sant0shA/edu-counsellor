@@ -273,7 +273,7 @@ def send_report_email(email: str, pdf_bytes: bytes):
                 'Your personalized CareerShifu Report is attached as a PDF.</p>'
 
                 '<p style="margin:0 0 16px;line-height:1.7;color:#333">'
-                'We suggest reading it through once without any pressure&#8202;&#8212;&#8202;simply note what resonates '
+                'We suggest reading it through once without any pressure. Simply note what resonates '
                 'with you and what doesn&#8217;t. Since we haven&#8217;t collected your name or phone number to ensure '
                 'your privacy and a spam-free experience, we want you to feel completely in control of your results.</p>'
 
@@ -293,13 +293,13 @@ def send_report_email(email: str, pdf_bytes: bytes):
 
                 '<p style="margin:0 0 6px;font-weight:600;color:#1a1a1a">Know someone figuring out their path?</p>'
                 '<p style="margin:0 0 16px;line-height:1.7;color:#333">'
-                'Most people who find this useful know at least one other person &#8212; a sibling, a cousin, '
-                'a friend &#8212; who\'s in the same spot. Someone who\'d benefit from seeing their own thinking '
+                'Most people who find this useful know at least one other person: a sibling, a cousin, '
+                'a friend, who\'s in the same spot. Someone who\'d benefit from seeing their own thinking '
                 'mapped out, not just a list of popular careers.</p>'
                 '<p style="margin:0 0 16px;line-height:1.7;color:#333">'
-                'Share <a href="https://careershifu.com" style="color:#a53600">careershifu.com</a> with them '
+                'Share <a href="https://app.careershifu.com" style="color:#a53600">app.careershifu.com</a> with them '
                 'and ask them to use code <strong style="color:#a53600;font-size:15px">GOAL26</strong> at '
-                'checkout &#8212; &#8377;100 off their report.</p>'
+                'checkout: &#8377;100 off their report.</p>'
                 '<p style="margin:0 0 24px;line-height:1.7;color:#333">'
                 'Tell them it\'s worth the 5 minutes.</p>'
 

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 
-const MULTI_MAX = 2;
+const DEFAULT_MULTI_MAX = 2;
 
 export default function Assessment({ tag, questions, multiSelect = false, onComplete }) {
   const [current, setCurrent] = useState(0);
@@ -17,7 +17,8 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
     () => [...(q.options || [])].sort(() => Math.random() - 0.5),
     [current] // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const capReached = selectedMulti.length >= MULTI_MAX;
+  const multiMax = q.maxSelect || DEFAULT_MULTI_MAX;
+  const capReached = selectedMulti.length >= multiMax;
 
   function goBack() {
     const prevIndex   = current - 1;
@@ -58,7 +59,7 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
     setSelectedMulti((prev) =>
       prev.includes(opt)
         ? prev.filter((o) => o !== opt)
-        : prev.length < MULTI_MAX
+        : prev.length < multiMax
         ? [...prev, opt]
         : prev
     );
@@ -92,7 +93,7 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
           {isMulti
             ? capReached
               ? 'Tap a selected answer to remove it, then choose a different one'
-              : 'Choose 1 or 2 that resonate most'
+              : (q.hint || 'Choose 1 or 2 that resonate most')
             : 'Choose one'}
         </p>
       </div>

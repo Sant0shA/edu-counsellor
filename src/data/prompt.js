@@ -61,6 +61,7 @@ export function buildPrompt(answers) {
     'Projective EQ — animal they find most fascinating',
     'Quality they most admire in role models (values signal)',
     'Type of problem they most want to work on (purpose signal)',
+    'Domain curiosity — what they would most dislike never understanding (domain signal)',
   ];
   const personalLines = peAnswers
     .map((a, i) => `  ${personalLabels[i] || `Q${i + 1}`}: ${a}`)

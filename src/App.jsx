@@ -71,7 +71,7 @@ export default function App() {
       })
       .catch((err) => {
         console.error('VEG error:', err)
-        setScreen('results')
+        setScreen('error')
       })
   }, [screen]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -239,6 +239,25 @@ export default function App() {
 
   if (screen === 'results') {
     return <Results result={result} sessionId={sessionId} grade={answers.grade} userId={userId} userEmail={userEmail} onRestart={restart} onSignOut={restart} daysRemaining={priorSession ? priorSession.daysRemaining : null} />
+  }
+
+  if (screen === 'error') {
+    return (
+      <div className="screen" style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', minHeight: '100vh', padding: '32px',
+        textAlign: 'center', gap: '20px',
+      }}>
+        <span className="logo-text" style={{ fontSize: '18px', color: '#a53600', fontWeight: 800 }}>CareerShifu</span>
+        <p style={{ color: '#a53600', fontWeight: 600, fontSize: '17px', margin: 0 }}>Something went wrong</p>
+        <p style={{ color: '#594139', fontSize: '14px', margin: 0, maxWidth: '280px', lineHeight: 1.6 }}>
+          We couldn't generate your results. This is usually a temporary issue.
+        </p>
+        <button className="btn-primary" onClick={() => setScreen('loading')}>
+          Try again
+        </button>
+      </div>
+    )
   }
 
   return null
