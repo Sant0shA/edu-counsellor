@@ -17,6 +17,8 @@ const GRADE_INSTRUCTIONS = {
 export function buildPrompt(answers) {
   const {
     grade: gradeAnswer = '',
+    stream: streamAnswer = '',
+    degree: degreeAnswer = '',
     cognitiveQuestions = [],
     psychometric: pAnswers = [],
     cognitive: cAnswers = [],
@@ -86,7 +88,10 @@ Coaching rules:
 - Do not dismiss any interest — reframe it if needed
 - Use location and relocation signals to keep suggestions realistic for Indian students
 
-STUDENT SIGNALS:
+${streamAnswer || degreeAnswer ? `STUDENT CONTEXT:
+${[streamAnswer ? `  Current school stream: ${streamAnswer}` : '', degreeAnswer ? `  Degree or field of study: ${degreeAnswer}` : ''].filter(Boolean).join('\n')}
+
+` : ''}STUDENT SIGNALS:
 
 How they think — situational responses (Big Five signals):
 ${psychoLines}

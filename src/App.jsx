@@ -12,6 +12,8 @@ import { buildPrompt } from './data/prompt'
 import { callVEG, saveSession, fetchLatestSession } from './utils/api'
 import Returning from './components/Returning'
 import SignOutChip from './components/SignOutChip'
+import StreamSelect from './components/StreamSelect'
+import DegreeSelect from './components/DegreeSelect'
 
 export default function App() {
   const [screen, setScreen] = useState('intro')
@@ -20,6 +22,8 @@ export default function App() {
   const [userEmail, setUserEmail] = useState(null)
   const [answers, setAnswers] = useState({
     grade: '',
+    stream: '',
+    degree: '',
     cognitiveQuestions: [],
     psychometric: [],
     cognitive: [],
@@ -78,6 +82,8 @@ export default function App() {
   function restart() {
     setAnswers({
       grade: '',
+      stream: '',
+      degree: '',
       cognitiveQuestions: [],
       psychometric: [],
       cognitive: [],
@@ -140,6 +146,30 @@ export default function App() {
         onComplete={(g) => {
           const cogQs = getCognitiveQuestions(g)
           setAnswers((prev) => ({ ...prev, grade: g, cognitiveQuestions: cogQs }))
+          if (g === 'Class 11 or 12') setScreen('stream-select')
+          else if (g === 'In college / Undergraduate' || g === 'Just finished school or gap year') setScreen('degree-select')
+          else setScreen('psychometric')
+        }}
+      />
+    )
+  }
+
+  if (screen === 'stream-select') {
+    return (
+      <StreamSelect
+        onComplete={(s) => {
+          setAnswers((prev) => ({ ...prev, stream: s }))
+          setScreen('psychometric')
+        }}
+      />
+    )
+  }
+
+  if (screen === 'degree-select') {
+    return (
+      <DegreeSelect
+        onComplete={(d) => {
+          setAnswers((prev) => ({ ...prev, degree: d }))
           setScreen('psychometric')
         }}
       />

@@ -93,6 +93,8 @@ export default function Assessment({ tag, questions, multiSelect = false, onComp
           {isMulti
             ? capReached
               ? 'Tap a selected answer to remove it, then choose a different one'
+              : selectedMulti.length > 0
+              ? `${selectedMulti.length} selected — you can add ${multiMax - selectedMulti.length} more`
               : (q.hint || 'Choose 1 or 2 that resonate most')
             : 'Choose one'}
         </p>
