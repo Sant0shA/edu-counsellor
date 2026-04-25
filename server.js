@@ -385,6 +385,9 @@ app.get('/api/session/latest', async (req, res) => {
     );
     if (rows.length === 0) return res.json({ session: null });
 
+    // Test emails can always retake — skip the returning screen
+    if (isTestEmail(email)) return res.json({ session: null });
+
     const elapsed = Date.now() - new Date(rows[0].created_at).getTime();
     const daysRemaining = 30 - Math.floor(elapsed / (1000 * 60 * 60 * 24));
 
