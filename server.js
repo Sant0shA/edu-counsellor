@@ -635,11 +635,12 @@ app.post('/api/coupon/validate', async (req, res) => {
       return res.json({ valid: false, error: 'Invalid or expired coupon code.' });
     }
 
-    // If userId provided, check prior redemption (any coupon — 1 report per account)
+    // If userId provided, check prior redemption within the last 30 days
     // Bypass for test emails so they can re-run unlimited times
     if (userId && !isTestEmail(email)) {
       const { rows: used } = await pool.query(
-        'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
+        `SELECT 1 FROM coupon_redemptions
+         WHERE user_id = $1 AND created_at > now() - INTERVAL '30 days'`,
         [String(userId)]
       );
       if (used.length > 0) {
@@ -700,11 +701,12 @@ app.post('/api/coupon/redeem', async (req, res) => {
 
     const couponId = rows[0].id;
 
-    // Check not already redeemed by this user (any coupon — 1 report per account)
+    // Check not already redeemed by this user within the last 30 days
     // Bypass for test emails so they can re-run unlimited times
     if (!isTestEmail(email)) {
       const { rows: alreadyUsed } = await client.query(
-        'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
+        `SELECT 1 FROM coupon_redemptions
+         WHERE user_id = $1 AND created_at > now() - INTERVAL '30 days'`,
         [String(userId)]
       );
       if (alreadyUsed.length > 0) {
@@ -794,10 +796,12 @@ app.get('/api/report/status', async (req, res) => {
   if (!pool) return res.json({ sent: false });
   const email = (req.query.email || '').trim().toLowerCase();
   if (!email) return res.json({ sent: false });
+  if (isTestEmail(email)) return res.json({ sent: false });
   try {
     const { rows } = await pool.query(
       `SELECT updated_at FROM report_queue
        WHERE LOWER(email) = $1 AND status = 'done'
+         AND updated_at > now() - INTERVAL '30 days'
        ORDER BY updated_at DESC LIMIT 1`,
       [email]
     );
