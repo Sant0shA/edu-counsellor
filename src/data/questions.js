@@ -88,6 +88,17 @@ export const psychometric = [
       "Analyse exactly what went wrong so it doesn't repeat",
     ],
   },
+  {
+    id: 'ceq',
+    bigFive: 'Agreeableness + Empathy',
+    question: "Your friend looks upset but hasn't said anything. You…",
+    options: [
+      'Ask them directly',
+      'Give space but stay nearby',
+      'Distract them with something fun',
+      'Wait for them to bring it up',
+    ],
+  },
 ];
 
 // ── Cognitive question bank — tiered by grade ──
@@ -291,22 +302,10 @@ const cognitiveSenior = [
   },
 ];
 
-const cognitiveEQ = {
-  id: 'ceq',
-  question: "Your friend looks upset but hasn't said anything. You…",
-  options: [
-    'Ask them directly',
-    'Give space but stay nearby',
-    'Distract them with something fun',
-    'Wait for them to bring it up',
-  ],
-  correct: null, // situational — no correct answer
-};
-
 // Kept as fallback for any code that still imports `cognitive` directly
-export const cognitive = [...cognitiveMiddle, cognitiveEQ];
+export const cognitive = [...cognitiveMiddle];
 
-/** Pick 4 random scored questions from the right tier, then append the EQ question. */
+/** Pick 4 random scored questions from the right tier. */
 export function getCognitiveQuestions(grade) {
   const tier =
     grade === 'Class 8 or 9'
@@ -316,7 +315,7 @@ export function getCognitiveQuestions(grade) {
       : cognitiveSenior; // Class 11/12 + gap year
 
   const shuffled = [...tier].sort(() => Math.random() - 0.5);
-  return [...shuffled.slice(0, 4), cognitiveEQ];
+  return shuffled.slice(0, 4);
 }
 
 // ── Personal: 7 questions (5 MCQ + 2 free text) ──

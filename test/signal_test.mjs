@@ -12,7 +12,6 @@ const cognitiveQuestions = [
   { id: 'cm2', correct: 'Client' },
   { id: 'cm3', correct: '₹900' },
   { id: 'cm4', correct: 'Priya reads' },
-  { id: 'ceq', correct: null },
 ];
 
 const PROFILES = [
@@ -31,8 +30,9 @@ const PROFILES = [
         'Curious but unsure where to start',
         'Step in and try to get everyone aligned',
         'Acknowledge it, fix it, move on — everyone makes mistakes',
+        'Ask them directly',
       ],
-      cognitive: ['162', 'Client', '₹900', 'Priya reads', 'Ask them directly'],
+      cognitive: ['162', 'Client', '₹900', 'Priya reads'],
       personal: [
         'Business or Economics',
         'Commerce or Economics',
@@ -62,8 +62,9 @@ const PROFILES = [
         'Curious but unsure where to start',
         'Take a clear position and defend it calmly',
         'Acknowledge it, fix it, move on — everyone makes mistakes',
+        'Give space but stay nearby',
       ],
-      cognitive: ['162', 'Client', '₹900', 'Priya reads', 'Give space but stay nearby'],
+      cognitive: ['162', 'Client', '₹900', 'Priya reads'],
       personal: [
         'History, Psychology or Social Sciences',
         'English or Languages',
@@ -93,8 +94,9 @@ const PROFILES = [
         'Excited — finally you can do something original',
         'Listen to all sides before you say anything',
         'Analyse exactly what went wrong so it doesn\'t repeat',
+        'Ask them directly',
       ],
-      cognitive: ['162', 'Client', '₹900', 'Priya reads', 'Ask them directly'],
+      cognitive: ['162', 'Client', '₹900', 'Priya reads'],
       personal: [
         'Biology or Life Sciences',
         'Maths or Science',
@@ -125,8 +127,9 @@ const PROFILES = [
         'Anxious — you\'d rather have clear direction',
         'Listen to all sides before you say anything',
         'Feel embarrassed for a bit, but recover',
+        'Give space but stay nearby',
       ],
-      cognitive: ['162', 'Client', '₹900', 'None of the above', 'Give space but stay nearby'],
+      cognitive: ['162', 'Client', '₹900', 'None of the above'],
       personal: [
         'History, Psychology or Social Sciences',
         'English or Languages',
@@ -159,8 +162,9 @@ const HARD_SCIENCE_PROFILES = [
         'Excited — finally you can do something original',
         'Take a clear position and defend it calmly',
         'Analyse exactly what went wrong so it doesn\'t repeat',
+        'Give space but stay nearby',
       ],
-      cognitive: ['162', 'Client', '18 hours', 'Mehta is dishonest', 'Give space but stay nearby'],
+      cognitive: ['162', 'Client', '18 hours', 'Mehta is dishonest'],
       personal: [
         'Physics or Chemistry',
         'Maths or Science',
@@ -190,8 +194,9 @@ const HARD_SCIENCE_PROFILES = [
         'Excited — finally you can do something original',
         'Take a clear position and defend it calmly',
         'Analyse exactly what went wrong so it doesn\'t repeat',
+        'Give space but stay nearby',
       ],
-      cognitive: ['162', 'Client', '18 hours', 'We cannot conclude whether any A is C', 'Give space but stay nearby'],
+      cognitive: ['162', 'Client', '18 hours', 'We cannot conclude whether any A is C'],
       personal: [
         'Maths or Statistics',
         'Maths or Science',
@@ -221,8 +226,9 @@ const HARD_SCIENCE_PROFILES = [
         'Curious but unsure where to start',
         'Listen to all sides before you say anything',
         'Analyse exactly what went wrong so it doesn\'t repeat',
+        'Give space but stay nearby',
       ],
-      cognitive: ['162', 'Client', '18 hours', 'We cannot conclude whether any A is C', 'Give space but stay nearby'],
+      cognitive: ['162', 'Client', '18 hours', 'We cannot conclude whether any A is C'],
       personal: [
         'Maths or Statistics',
         'Maths or Science',
@@ -252,8 +258,9 @@ const HARD_SCIENCE_PROFILES = [
         'Excited — finally you can do something original',
         'Take a clear position and defend it calmly',
         'Analyse exactly what went wrong so it doesn\'t repeat',
+        'Give space but stay nearby',
       ],
-      cognitive: ['162', 'Client', '18 hours', 'We cannot conclude whether any A is C', 'Give space but stay nearby'],
+      cognitive: ['162', 'Client', '18 hours', 'We cannot conclude whether any A is C'],
       personal: [
         'Tech or Computers',
         'Maths or Science',
