@@ -144,6 +144,7 @@ Other domain rules:
 - Each domain genuinely distinct — no overlapping clusters
 - paths[] exactly 5 specific careers or roles within that domain
 - Each path: short label only, maximum 4 words, no dashes, no descriptors
+- Order paths within each domain by India hiring demand — strongest demand first (active hiring, clear salary benchmarks), then moderate (requires specific degree or certification to enter), then niche or emerging (few roles, low entry pay). Do not add demand labels to the output — ordering only.
 - explore: one concrete action, not a vague suggestion
 - No percentages, no match scores, no ranking of domains`;
 }

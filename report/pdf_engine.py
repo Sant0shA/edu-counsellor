@@ -265,8 +265,12 @@ def _block_paths(career_data):
     if not paths:
         return []
     items = career_header('Paths within this domain')
+    _demand_colors = {'Strong': '#1D9E75', 'Moderate': '#C97A00', 'Niche': '#888888'}
     for p in paths[:6]:
-        items.append(Paragraph(f'&#8250;  {p["name"]}', S['role_title']))
+        demand = p.get('demand', '')
+        color = _demand_colors.get(demand, '')
+        demand_tag = f' <font color="{color}" size="8">({demand})</font>' if demand and color else ''
+        items.append(Paragraph(f'&#8250;  {p["name"]}{demand_tag}', S['role_title']))
         items.append(Paragraph(p.get('description', ''), S['role_desc']))
     return items
 

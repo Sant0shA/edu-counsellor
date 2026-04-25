@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import SignOutChip from './SignOutChip';
-import { checkReportStatus, resendReport } from '../utils/api';
+import { checkReportStatus, resendReport, authHeaders } from '../utils/api';
 
 const GRADE_LABELS = {
   'Class 8 or below': 'Early Explorer',
@@ -40,7 +40,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
 
   useEffect(() => {
     if (!userEmail) { setReportSent(false); return; }
-    checkReportStatus(userEmail).then(({ sent, secondsUntilResend }) => {
+    checkReportStatus().then(({ sent, secondsUntilResend }) => {
       setReportSent(sent);
       if (sent && secondsUntilResend > 0) setResendCooldownSecs(secondsUntilResend);
     });
@@ -55,7 +55,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
   async function handleResend() {
     setResendLoading(true);
     try {
-      await resendReport(userEmail);
+      await resendReport();
       setResendDone(true);
       setResendCooldownSecs(30 * 60);
     } catch (err) {
@@ -76,8 +76,8 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
     try {
       const res = await fetch('/api/payment/create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: amountRupees, sessionId, userId, email: userEmail, type }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ amount: amountRupees, sessionId, type }),
       });
       if (!res.ok) throw new Error('Could not create order');
       const order = await res.json();
@@ -120,8 +120,8 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
     try {
       const res = await fetch('/api/coupon/validate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: trimmed, userId: userId || '' }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ code: trimmed }),
       });
       const data = await res.json().catch(() => ({}));
       if (!data.valid) {
@@ -143,12 +143,10 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
     try {
       const res = await fetch('/api/coupon/redeem', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           code: appliedCoupon.code,
-          userId: userId || '',
           sessionId: sessionId || null,
-          email: userEmail || '',
         }),
       });
       const data = await res.json();
@@ -235,30 +233,46 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
         ))}
       </div>
 
+      {/* Report bridge hook */}
+      <div style={{
+        background: 'linear-gradient(135deg, #fff3ee 0%, #fff8f5 100%)',
+        border: '1.5px solid rgba(165,54,0,0.18)',
+        borderRadius: '16px',
+        padding: '20px 20px',
+        margin: '0 0 4px',
+        textAlign: 'center',
+      }}>
+        <p style={{ fontSize: '15px', fontWeight: 700, color: '#a53600', margin: '0 0 6px', lineHeight: 1.4 }}>
+          If the above felt like it was describing you —
+        </p>
+        <p style={{ fontSize: '14px', color: '#594139', margin: 0, lineHeight: 1.6 }}>
+          you've only seen the surface. The full 10-page report goes much deeper, and is built entirely from your answers.
+        </p>
+      </div>
+
       {/* Report card */}
       <div className="report-card" id="report-card">
-        <p className="report-eyebrow">Your CareerShifu Report</p>
-        <h2 className="report-headline">See what your answers actually say about you</h2>
+        <p className="report-eyebrow">CareerShifu Report · 10 pages · Built from your answers</p>
+        <h2 className="report-headline">You've only seen 6 of 15 paths — here's the full picture</h2>
         <p className="report-sub">
-          A personalised report built from your responses.
-          Specific to your grade, your thinking style, your paths.
+          Everything above is a preview. The report covers your complete profile — thinking style, all 15 paths, subject guidance specific to your grade, and a parent summary written for them to read.
         </p>
 
         <ul className="report-features">
-          <li><span className="feat-check">✓</span> Your thinking style and how you make decisions — explained in plain language</li>
-          <li><span className="feat-check">✓</span> All 5 career paths per domain — you've only seen 6 of 15 so far</li>
-          <li><span className="feat-check">✓</span> Stream and subject guidance for your grade and goals</li>
+          <li><span className="feat-check">✓</span> <strong>All 15 career paths</strong> — 5 per domain, with India demand context for each</li>
+          <li><span className="feat-check">✓</span> Your thinking style and decision-making pattern — explained in plain language</li>
+          <li><span className="feat-check">✓</span> Stream and subject guidance specific to your grade and goals</li>
           <li><span className="feat-check">✓</span> Your strengths and areas to develop — drawn from your own answers</li>
           <li><span className="feat-check">✓</span> 6–8 personalised things to try over the next 3 months</li>
-          <li><span className="feat-check">✓</span> A parent summary — written for them, so you don't have to explain it yourself</li>
-          <li><span className="feat-check">✓</span> Guided session available — message us on WhatsApp to schedule</li>
+          <li><span className="feat-check">✓</span> <strong>A parent summary</strong> — written for them, so the conversation doesn't have to start from scratch</li>
+          <li><span className="feat-check">✓</span> WhatsApp support included — reach us at <a href="https://wa.me/919004493138" target="_blank" rel="noopener noreferrer" style={{ color: '#a53600' }}>9004493138</a> after you receive it</li>
         </ul>
 
         <div className="counsellor-callout">
           <span className="callout-icon">💬</span>
           <div>
             <strong>Guided session available</strong>
-            <p>Want help making sense of your report? Reach out on WhatsApp to schedule a session with us.</p>
+            <p>Want help making sense of your report? WhatsApp us at <a href="https://wa.me/919004493138" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', fontWeight: 700 }}>9004493138</a> to schedule a session.</p>
           </div>
         </div>
 
@@ -347,15 +361,15 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
           <>
             {isFree ? (
               <button className="btn-report" type="button" disabled={redeemLoading} onClick={handleFreeCouponRedeem}>
-                {redeemLoading ? 'Confirming…' : 'Get my free CareerShifu report'}
+                {redeemLoading ? 'Confirming…' : 'Get my full 10-page report — free'}
               </button>
             ) : (
               <button className="btn-report" type="button" disabled={paymentLoading} onClick={() => handlePaidCheckout(effectivePrice, 'report')}>
-                {paymentLoading ? 'Preparing payment…' : 'Download my CareerShifu report'}
+                {paymentLoading ? 'Preparing payment…' : 'Get my full 10-page CareerShifu report →'}
               </button>
             )}
             <p className="payment-note">
-              {isFree ? 'Report sent to your email within 24 hours' : 'Secure payment · PDF to your email instantly'}
+              {isFree ? 'PDF sent to your email within 24 hours' : 'Secure payment · PDF sent to your email instantly'}
             </p>
             <p className="urgency-note">Your session expires in 48 hours</p>
           </>

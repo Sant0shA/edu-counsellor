@@ -37,15 +37,74 @@ function escHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// ── Auth token: HMAC-signed { userId, email, expiresAt } ──────────────────────
+// Format: base64url(payload).hex(hmacSha256(SECRET, payload))
+// Stateless — no DB lookup; matches existing 30-day session window.
+if (process.env.NODE_ENV === 'production' && !process.env.AUTH_TOKEN_SECRET) {
+  console.error('FATAL: AUTH_TOKEN_SECRET must be set in production');
+  process.exit(1);
+}
+const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || 'dev-only-insecure-do-not-use-in-prod';
+const AUTH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function issueAuthToken(userId, email) {
+  const payload = `${userId}|${email}|${Date.now() + AUTH_TOKEN_TTL_MS}`;
+  const encoded = Buffer.from(payload).toString('base64url');
+  const sig = crypto.createHmac('sha256', AUTH_TOKEN_SECRET).update(encoded).digest('hex');
+  return `${encoded}.${sig}`;
+}
+
+function verifyAuthToken(token) {
+  if (!token || typeof token !== 'string') throw new Error('Missing token');
+  const dot = token.lastIndexOf('.');
+  if (dot < 0) throw new Error('Malformed token');
+  const encoded = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  // Reject anything that isn't exactly 64 lowercase hex chars — Buffer.from('hex')
+  // silently truncates on non-hex chars, which would make appended garbage pass
+  if (!/^[0-9a-f]{64}$/.test(sig)) throw new Error('Invalid signature');
+  const expected = crypto.createHmac('sha256', AUTH_TOKEN_SECRET).update(encoded).digest('hex');
+  // Constant-time compare to prevent timing attacks
+  const sigBuf = Buffer.from(sig, 'hex');
+  const expBuf = Buffer.from(expected, 'hex');
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    throw new Error('Invalid signature');
+  }
+  const payload = Buffer.from(encoded, 'base64url').toString('utf8');
+  const parts = payload.split('|');
+  if (parts.length !== 3) throw new Error('Malformed payload');
+  const [userId, email, expiresAt] = parts;
+  if (Number(expiresAt) < Date.now()) throw new Error('Expired');
+  return { userId, email };
+}
+
+function requireAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  try {
+    req.auth = verifyAuthToken(token);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+}
+
 // ── In-memory rate-limit state ────────────────────────────────────────────────
 const otpSendLog        = new Map(); // email → lastSentMs
+const otpSendIpLog      = new Map(); // ip    → { count, windowStart }
 const otpAttempts       = new Map(); // email → { count, windowStart }
 const vegRateLog        = new Map(); // ip    → { count, windowStart }
 const couponValidateLog = new Map(); // ip    → { count, windowStart }
 const sessionRateLog    = new Map(); // ip    → { count, windowStart }
 const redeemRateLog     = new Map(); // ip    → { count, windowStart }
+const sessionLatestLog  = new Map(); // ip    → { count, windowStart }
+const reportStatusLog   = new Map(); // ip    → { count, windowStart }
+const reportResendIpLog = new Map(); // ip    → { count, windowStart }
+const reportResendUserLog = new Map(); // userId → { count, windowStart }
 
 const OTP_SEND_COOLDOWN_MS   = 60 * 1000;
+const OTP_SEND_IP_WINDOW_MS  = 60 * 60 * 1000;
+const OTP_SEND_IP_MAX        = 5;
 const OTP_ATTEMPT_WINDOW_MS  = 15 * 60 * 1000;
 const OTP_MAX_ATTEMPTS       = 3;
 const VEG_WINDOW_MS          = 60 * 1000;
@@ -56,6 +115,22 @@ const SESSION_WINDOW_MS      = 60 * 1000;
 const SESSION_MAX            = 60;  // school networks share a single IP
 const REDEEM_WINDOW_MS       = 60 * 1000;
 const REDEEM_MAX             = 10;
+const READONLY_WINDOW_MS     = 60 * 1000;
+const READONLY_MAX           = 30;
+const RESEND_WINDOW_MS       = 60 * 60 * 1000;
+const RESEND_IP_MAX          = 5;
+const RESEND_USER_MAX        = 5;
+
+// Generic IP+window rate-limit helper. Returns true when allowed, false when capped.
+function checkRate(map, key, windowMs, max) {
+  const entry = map.get(key) || { count: 0, windowStart: Date.now() };
+  if (Date.now() - entry.windowStart > windowMs) {
+    entry.count = 0; entry.windowStart = Date.now();
+  }
+  entry.count++;
+  map.set(key, entry);
+  return entry.count <= max;
+}
 
 // ── Report concurrency state ──────────────────────────────────────────────────
 let activeReports = 0;
@@ -320,27 +395,21 @@ app.post('/api/veg', async (req, res) => {
 });
 
 // ── Save session ─────────────────────────────────────────────────────────────
-app.post('/api/session', async (req, res) => {
+app.post('/api/session', requireAuth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DB not configured' });
 
   const ip = req.ip || 'unknown';
-  const sEntry = sessionRateLog.get(ip) || { count: 0, windowStart: Date.now() };
-  if (Date.now() - sEntry.windowStart > SESSION_WINDOW_MS) {
-    sEntry.count = 0; sEntry.windowStart = Date.now();
-  }
-  if (++sEntry.count > SESSION_MAX) {
-    sessionRateLog.set(ip, sEntry);
+  if (!checkRate(sessionRateLog, ip, SESSION_WINDOW_MS, SESSION_MAX)) {
     return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
   }
-  sessionRateLog.set(ip, sEntry);
 
-  const { grade, answers, result, userId } = req.body;
+  const { grade, answers, result } = req.body;
   if (!answers || !result) return res.status(400).json({ error: 'Missing data' });
 
   try {
     const { rows } = await pool.query(
       'INSERT INTO sessions (grade, answers, result, user_id) VALUES ($1, $2, $3, $4) RETURNING id',
-      [grade, answers, result, userId || null]
+      [grade, answers, result, req.auth.userId]
     );
     res.json({ sessionId: rows[0].id });
   } catch (err) {
@@ -349,12 +418,16 @@ app.post('/api/session', async (req, res) => {
 });
 
 // ── Latest session for a user (30-day window) ─────────────────────────────────
-// Looks up by email (JOIN with users) as primary key — more reliable than user_id
-// which can be null if the integer didn't save correctly.
-app.get('/api/session/latest', async (req, res) => {
+// Email derived from auth token — caller cannot query other users' sessions.
+app.get('/api/session/latest', requireAuth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DB not configured' });
-  const email = (req.query.email || '').trim().toLowerCase();
-  if (!email) return res.status(400).json({ error: 'Missing email' });
+
+  const ip = req.ip || 'unknown';
+  if (!checkRate(sessionLatestLog, ip, READONLY_WINDOW_MS, READONLY_MAX)) {
+    return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
+  }
+
+  const email = req.auth.email;
 
   try {
     const { rows } = await pool.query(
@@ -464,6 +537,12 @@ app.post('/api/auth/otp/send', async (req, res) => {
 
   const normalEmail = email.trim().toLowerCase();
 
+  // Per-IP cap: stop email-rotation flooding (cost bleed on Resend)
+  const ip = req.ip || 'unknown';
+  if (!checkRate(otpSendIpLog, ip, OTP_SEND_IP_WINDOW_MS, OTP_SEND_IP_MAX)) {
+    return res.status(429).json({ error: 'Too many sign-in attempts from this network. Please try again later.' });
+  }
+
   // 1 OTP per 60 seconds per email
   const lastSent = otpSendLog.get(normalEmail) || 0;
   if (Date.now() - lastSent < OTP_SEND_COOLDOWN_MS) {
@@ -472,7 +551,8 @@ app.post('/api/auth/otp/send', async (req, res) => {
   }
   otpSendLog.set(normalEmail, Date.now());
 
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  // crypto.randomInt is uniformly distributed and CSPRNG-backed (vs Math.random)
+  const code = String(crypto.randomInt(100000, 1000000));
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
   // ── Persist code: DB if available, else in-memory dev store ─────────────
@@ -539,7 +619,8 @@ app.post('/api/auth/otp/verify', async (req, res) => {
     }
     devOtpStore.delete(normalEmail);
     otpAttempts.delete(normalEmail);
-    return res.json({ ok: true, userId: `dev-${normalEmail}` });
+    const devUserId = `dev-${normalEmail}`;
+    return res.json({ ok: true, userId: devUserId, token: issueAuthToken(devUserId, normalEmail) });
   }
 
   try {
@@ -567,29 +648,25 @@ app.post('/api/auth/otp/verify', async (req, res) => {
     );
 
     otpAttempts.delete(normalEmail);
-    res.json({ ok: true, userId: userRows[0].id });
+    const uid = userRows[0].id;
+    res.json({ ok: true, userId: uid, token: issueAuthToken(uid, normalEmail) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // ── Coupon: validate (read-only, does not consume a use) ─────────────────────
-app.post('/api/coupon/validate', async (req, res) => {
+app.post('/api/coupon/validate', requireAuth, async (req, res) => {
   if (!pool) return res.status(503).json({ valid: false, error: 'DB not configured' });
 
-  // Rate limit by IP: 10 checks per minute
+  // Rate limit by IP: 10 checks per minute (auth required, but still cap enumeration)
   const ip = req.ip || 'unknown';
-  const cvEntry = couponValidateLog.get(ip) || { count: 0, windowStart: Date.now() };
-  if (Date.now() - cvEntry.windowStart > COUPON_WINDOW_MS) {
-    cvEntry.count = 0; cvEntry.windowStart = Date.now();
-  }
-  if (++cvEntry.count > COUPON_MAX_PER_WINDOW) {
-    couponValidateLog.set(ip, cvEntry);
+  if (!checkRate(couponValidateLog, ip, COUPON_WINDOW_MS, COUPON_MAX_PER_WINDOW)) {
     return res.status(429).json({ valid: false, error: 'Too many attempts. Please wait a minute.' });
   }
-  couponValidateLog.set(ip, cvEntry);
 
-  const { code, userId } = req.body || {};
+  const userId = req.auth.userId;
+  const { code } = req.body || {};
   if (!code || typeof code !== 'string') {
     return res.status(400).json({ valid: false, error: 'Enter a coupon code.' });
   }
@@ -616,15 +693,13 @@ app.post('/api/coupon/validate', async (req, res) => {
       return res.json({ valid: false, error: 'Invalid or expired coupon code.' });
     }
 
-    // If userId provided, check prior redemption (any coupon — 1 report per account)
-    if (userId) {
-      const { rows: used } = await pool.query(
-        'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
-        [String(userId)]
-      );
-      if (used.length > 0) {
-        return res.json({ valid: false, error: 'A report has already been redeemed on this account.' });
-      }
+    // Check prior redemption (any coupon — 1 report per account)
+    const { rows: used } = await pool.query(
+      'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
+      [String(userId)]
+    );
+    if (used.length > 0) {
+      return res.json({ valid: false, error: 'A report has already been redeemed on this account.' });
     }
 
     res.json({ valid: true, type: rows[0].type, discountValue: rows[0].discount_value, code: normalCode });
@@ -634,22 +709,19 @@ app.post('/api/coupon/validate', async (req, res) => {
 });
 
 // ── Coupon: redeem (consumes a use, triggers report delivery) ─────────────────
-app.post('/api/coupon/redeem', async (req, res) => {
+app.post('/api/coupon/redeem', requireAuth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DB not configured' });
 
   const ip = req.ip || 'unknown';
-  const rEntry = redeemRateLog.get(ip) || { count: 0, windowStart: Date.now() };
-  if (Date.now() - rEntry.windowStart > REDEEM_WINDOW_MS) {
-    rEntry.count = 0; rEntry.windowStart = Date.now();
-  }
-  if (++rEntry.count > REDEEM_MAX) {
-    redeemRateLog.set(ip, rEntry);
+  if (!checkRate(redeemRateLog, ip, REDEEM_WINDOW_MS, REDEEM_MAX)) {
     return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
   }
-  redeemRateLog.set(ip, rEntry);
 
-  const { code, userId, sessionId, email } = req.body;
-  if (!code || !userId || !email) {
+  // userId + email come from auth token, NOT request body — prevents victim-impersonation
+  const userId = req.auth.userId;
+  const email = req.auth.email;
+  const { code, sessionId } = req.body;
+  if (!code) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
@@ -767,10 +839,14 @@ app.post('/api/coupon/redeem', async (req, res) => {
 });
 
 // ── Report: status check + resend ────────────────────────────────────────────
-app.get('/api/report/status', async (req, res) => {
+// Email derived from auth token — caller cannot probe other users' reports.
+app.get('/api/report/status', requireAuth, async (req, res) => {
   if (!pool) return res.json({ sent: false });
-  const email = (req.query.email || '').trim().toLowerCase();
-  if (!email) return res.json({ sent: false });
+  const ip = req.ip || 'unknown';
+  if (!checkRate(reportStatusLog, ip, READONLY_WINDOW_MS, READONLY_MAX)) {
+    return res.status(429).json({ sent: false, error: 'Too many requests.' });
+  }
+  const email = req.auth.email;
   try {
     const { rows } = await pool.query(
       `SELECT updated_at FROM report_queue
@@ -786,11 +862,16 @@ app.get('/api/report/status', async (req, res) => {
   } catch { res.json({ sent: false }); }
 });
 
-app.post('/api/report/resend', async (req, res) => {
+app.post('/api/report/resend', requireAuth, async (req, res) => {
   if (!pool) return res.status(503).json({ error: 'DB not configured' });
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Missing email' });
-  const normalEmail = email.trim().toLowerCase();
+  const ip = req.ip || 'unknown';
+  if (!checkRate(reportResendIpLog, ip, RESEND_WINDOW_MS, RESEND_IP_MAX)) {
+    return res.status(429).json({ error: 'Too many resend requests. Please try later.' });
+  }
+  if (!checkRate(reportResendUserLog, req.auth.userId, RESEND_WINDOW_MS, RESEND_USER_MAX)) {
+    return res.status(429).json({ error: 'Too many resend requests on this account. Please try later.' });
+  }
+  const normalEmail = req.auth.email;
   try {
     const { rows } = await pool.query(
       `SELECT session_id, user_id, updated_at FROM report_queue
@@ -816,10 +897,13 @@ app.post('/api/report/resend', async (req, res) => {
 });
 
 // ── Payment: create Razorpay order ────────────────────────────────────────────
-app.post('/api/payment/create-order', async (req, res) => {
+app.post('/api/payment/create-order', requireAuth, async (req, res) => {
   if (!razorpay) return res.status(503).json({ error: 'Payment not configured' });
-  const { amount, sessionId, userId, email, type } = req.body;
-  if (!amount || !email) return res.status(400).json({ error: 'Missing amount or email' });
+  // userId + email from auth token; sessionId/amount/type from body
+  const userId = req.auth.userId;
+  const email = req.auth.email;
+  const { amount, sessionId, type } = req.body;
+  if (!amount) return res.status(400).json({ error: 'Missing amount' });
   try {
     const order = await razorpay.orders.create({
       amount: Math.round(Number(amount) * 100), // paise
@@ -827,7 +911,7 @@ app.post('/api/payment/create-order', async (req, res) => {
       receipt: `cs_${type || 'report'}_${Date.now()}`,
       notes: {
         sessionId: String(sessionId || ''),
-        userId: String(userId || ''),
+        userId: String(userId),
         email,
         type: type || 'report',
       },

@@ -40,13 +40,22 @@ export default function App() {
     try {
       const saved = localStorage.getItem('cs_auth')
       if (!saved) return
-      const { userId: uid, userEmail: em } = JSON.parse(saved)
-      if (!uid) return
+      const { userId: uid, userEmail: em, token } = JSON.parse(saved)
+      if (!uid || !token) {
+        // Pre-token-era cs_auth — clear it; user re-signs in
+        localStorage.removeItem('cs_auth')
+        return
+      }
       setUserId(uid)
       setUserEmail(em)
       setCheckingSession(true)
-      fetchLatestSession(em)
+      fetchLatestSession()
         .then((sess) => {
+          // Token may have been rejected — fetchLatestSession clears localStorage on 401
+          if (!localStorage.getItem('cs_auth')) {
+            setUserId(null); setUserEmail(null)
+            return
+          }
           if (sess) {
             setPriorSession(sess)
             setResult(sess.result)
@@ -68,7 +77,7 @@ export default function App() {
     callVEG(prompt)
       .then(async (data) => {
         const { cognitiveQuestions: _cq, ...answersToSave } = answers
-        const sid = await saveSession(answers.grade, answersToSave, data, userId)
+        const sid = await saveSession(answers.grade, answersToSave, data)
         setSessionId(sid)
         setResult(data)
         setScreen('results')
@@ -100,14 +109,14 @@ export default function App() {
     localStorage.removeItem('cs_auth')
   }
 
-  async function handleVerified(uid, email) {
+  async function handleVerified(uid, email, token) {
     setUserId(uid)
     setUserEmail(email)
-    localStorage.setItem('cs_auth', JSON.stringify({ userId: uid, userEmail: email }))
+    localStorage.setItem('cs_auth', JSON.stringify({ userId: uid, userEmail: email, token }))
     setShowSignIn(false)
     setCheckingSession(true)
     try {
-      const sess = await fetchLatestSession(email)
+      const sess = await fetchLatestSession()
       if (sess) {
         setPriorSession(sess)
         setResult(sess.result)

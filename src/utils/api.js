@@ -53,47 +53,73 @@ const DEMO_RESULT = {
   ],
 };
 
-export async function saveSession(grade, answers, result, userId) {
+// ── Auth helpers ─────────────────────────────────────────────────────────────
+export function authHeaders() {
+  try {
+    const saved = localStorage.getItem('cs_auth');
+    if (!saved) return {};
+    const { token } = JSON.parse(saved);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch { return {}; }
+}
+
+// Clear stored auth on 401 — token is invalid/expired/tampered
+function handle401(res) {
+  if (res.status === 401) {
+    try { localStorage.removeItem('cs_auth'); } catch {}
+    return true;
+  }
+  return false;
+}
+
+export async function saveSession(grade, answers, result) {
   if (!import.meta.env.PROD) return null;
   try {
     const res = await fetch('/api/session', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ grade, answers, result, userId: userId ?? null }),
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ grade, answers, result }),
     });
+    if (handle401(res)) return null;
     if (!res.ok) return null;
     const data = await res.json();
     return data.sessionId ?? null;
   } catch { return null; }
 }
 
-export async function fetchLatestSession(email) {
+export async function fetchLatestSession() {
   if (!import.meta.env.PROD) return null;
-  if (!email) return null;
+  const headers = authHeaders();
+  if (!headers.Authorization) return null;
   try {
-    const res = await fetch(`/api/session/latest?email=${encodeURIComponent(email)}`);
+    const res = await fetch('/api/session/latest', { headers });
+    if (handle401(res)) return null;
     if (!res.ok) return null;
     const data = await res.json();
     return data.session ?? null;
   } catch { return null; }
 }
 
-export async function checkReportStatus(email) {
+export async function checkReportStatus() {
   if (!import.meta.env.PROD) return { sent: false };
-  if (!email) return { sent: false };
+  const headers = authHeaders();
+  if (!headers.Authorization) return { sent: false };
   try {
-    const res = await fetch(`/api/report/status?email=${encodeURIComponent(email)}`);
+    const res = await fetch('/api/report/status', { headers });
+    if (handle401(res)) return { sent: false };
     if (!res.ok) return { sent: false };
     return await res.json();
   } catch { return { sent: false }; }
 }
 
-export async function resendReport(email) {
+export async function resendReport() {
   const res = await fetch('/api/report/resend', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
   });
+  if (handle401(res)) {
+    throw new Error('Your session has expired. Please sign in again.');
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.error || 'Failed to resend');

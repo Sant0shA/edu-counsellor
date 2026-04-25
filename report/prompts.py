@@ -149,11 +149,11 @@ Return exactly this JSON:
 {{
   "fit_rationale": "60-80 words. Why this domain is worth exploring for this student. Connect their specific signals and responses to this domain directly.",
   "paths": [
-    {{"name": "Role or path title", "description": "One sentence, present tense: what someone in this role actually does day-to-day."}},
-    {{"name": "...", "description": "..."}},
-    {{"name": "...", "description": "..."}},
-    {{"name": "...", "description": "..."}},
-    {{"name": "...", "description": "..."}}
+    {{"name": "Role or path title", "description": "One sentence, present tense: what someone in this role actually does day-to-day.", "demand": "Strong"}},
+    {{"name": "...", "description": "...", "demand": "Strong"}},
+    {{"name": "...", "description": "...", "demand": "Moderate"}},
+    {{"name": "...", "description": "...", "demand": "Moderate"}},
+    {{"name": "...", "description": "...", "demand": "Niche"}}
   ],
 {stream_field}
   "{degree_label}": [
@@ -165,7 +165,11 @@ Return exactly this JSON:
   ]
 }}
 
-Rules: 5 paths required. Each path name is a distinct role title. Each description is one sentence in present tense describing the actual work."""
+
+"demand" is one of: "Strong" (active hiring in India now, clear salary benchmarks), "Moderate" (real career, needs specific degree or certification to enter properly), "Niche" (few roles in India, low entry pay — vocation track, not salary track).
+Sort paths: Strong first, Moderate second, Niche last.
+
+Rules: 5 paths required. Sort by demand: Strong first, Moderate second, Niche last. Each path name is a distinct role title. Each description is one sentence in present tense describing the actual work."""
 
 
 def prompt_parent_summary() -> str:
