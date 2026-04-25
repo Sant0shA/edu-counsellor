@@ -121,7 +121,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
       const res = await fetch('/api/coupon/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: trimmed, userId: userId || '', email: userEmail || '' }),
+        body: JSON.stringify({ code: trimmed, userId: userId || '' }),
       });
       const data = await res.json().catch(() => ({}));
       if (!data.valid) {

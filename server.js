@@ -57,16 +57,6 @@ const SESSION_MAX            = 60;  // school networks share a single IP
 const REDEEM_WINDOW_MS       = 60 * 1000;
 const REDEEM_MAX             = 10;
 
-// ── Test email bypass ─────────────────────────────────────────────────────────
-// santosh180181@gmail.com is always free; add extras via TEST_EMAILS env var (comma-separated)
-function isTestEmail(email) {
-  if (!email) return false;
-  const normalized = String(email).trim().toLowerCase();
-  if (normalized === 'santosh180181@gmail.com') return true;
-  if (!process.env.TEST_EMAILS) return false;
-  return process.env.TEST_EMAILS.split(',').map(e => e.trim().toLowerCase()).includes(normalized);
-}
-
 // ── Report concurrency state ──────────────────────────────────────────────────
 let activeReports = 0;
 const MAX_CONCURRENT_REPORTS = 20;
@@ -253,12 +243,6 @@ async function initDb() {
       VALUES ('GOAL26', 'flat', 100, 10000)
       ON CONFLICT (code) DO NOTHING
     `);
-    // Internal test coupon — free, unlimited uses, for santosh180181@gmail.com
-    await pool.query(`
-      INSERT INTO coupons (code, type, discount_value, max_uses)
-      VALUES ('S@NT1801', 'free', 0, 99999)
-      ON CONFLICT (code) DO NOTHING
-    `);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS nudge_log (
         id        SERIAL PRIMARY KEY,
@@ -384,9 +368,6 @@ app.get('/api/session/latest', async (req, res) => {
       [email]
     );
     if (rows.length === 0) return res.json({ session: null });
-
-    // Test emails can always retake — skip the returning screen
-    if (isTestEmail(email)) return res.json({ session: null });
 
     const elapsed = Date.now() - new Date(rows[0].created_at).getTime();
     const daysRemaining = 30 - Math.floor(elapsed / (1000 * 60 * 60 * 24));
@@ -608,7 +589,7 @@ app.post('/api/coupon/validate', async (req, res) => {
   }
   couponValidateLog.set(ip, cvEntry);
 
-  const { code, userId, email } = req.body || {};
+  const { code, userId } = req.body || {};
   if (!code || typeof code !== 'string') {
     return res.status(400).json({ valid: false, error: 'Enter a coupon code.' });
   }
@@ -635,12 +616,10 @@ app.post('/api/coupon/validate', async (req, res) => {
       return res.json({ valid: false, error: 'Invalid or expired coupon code.' });
     }
 
-    // If userId provided, check prior redemption within the last 30 days
-    // Bypass for test emails so they can re-run unlimited times
-    if (userId && !isTestEmail(email)) {
+    // If userId provided, check prior redemption (any coupon — 1 report per account)
+    if (userId) {
       const { rows: used } = await pool.query(
-        `SELECT 1 FROM coupon_redemptions
-         WHERE user_id = $1 AND created_at > now() - INTERVAL '30 days'`,
+        'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
         [String(userId)]
       );
       if (used.length > 0) {
@@ -701,18 +680,14 @@ app.post('/api/coupon/redeem', async (req, res) => {
 
     const couponId = rows[0].id;
 
-    // Check not already redeemed by this user within the last 30 days
-    // Bypass for test emails so they can re-run unlimited times
-    if (!isTestEmail(email)) {
-      const { rows: alreadyUsed } = await client.query(
-        `SELECT 1 FROM coupon_redemptions
-         WHERE user_id = $1 AND created_at > now() - INTERVAL '30 days'`,
-        [String(userId)]
-      );
-      if (alreadyUsed.length > 0) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'A report has already been redeemed on this account.' });
-      }
+    // Check not already redeemed by this user (any coupon — 1 report per account)
+    const { rows: alreadyUsed } = await client.query(
+      'SELECT 1 FROM coupon_redemptions WHERE user_id = $1',
+      [String(userId)]
+    );
+    if (alreadyUsed.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'A report has already been redeemed on this account.' });
     }
 
     // Increment uses_count
@@ -796,12 +771,10 @@ app.get('/api/report/status', async (req, res) => {
   if (!pool) return res.json({ sent: false });
   const email = (req.query.email || '').trim().toLowerCase();
   if (!email) return res.json({ sent: false });
-  if (isTestEmail(email)) return res.json({ sent: false });
   try {
     const { rows } = await pool.query(
       `SELECT updated_at FROM report_queue
        WHERE LOWER(email) = $1 AND status = 'done'
-         AND updated_at > now() - INTERVAL '30 days'
        ORDER BY updated_at DESC LIMIT 1`,
       [email]
     );
