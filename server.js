@@ -213,7 +213,15 @@ function spawnReport(queueId) {
   child.stderr.on('data', d => console.error(`[report ${queueId}]`, d.toString().trim()));
   child.on('close', async (code) => {
     activeReports--;
-    if (code !== 0) sendAdminAlert('failed', queueId).catch(() => {});
+    if (code !== 0) {
+      if (pool) {
+        pool.query(
+          "UPDATE report_queue SET status = 'failed', error = $1, updated_at = now() WHERE id = $2",
+          [`process exited with code ${code}`, queueId]
+        ).catch(() => {});
+      }
+      sendAdminAlert('failed', queueId).catch(() => {});
+    }
     drainReportQueue().catch(() => {});
   });
   child.on('error', async (err) => {
