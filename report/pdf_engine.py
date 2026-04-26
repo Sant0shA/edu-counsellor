@@ -468,7 +468,6 @@ def _build_about(ctx):
     story = []
     header = []
     section_divider(header, 'About this report')
-    header.append(Paragraph('What is inside', S['h1']))
     story.append(KeepTogether(header))
 
     if is_dw:
@@ -476,10 +475,6 @@ def _build_about(ctx):
             'You are in Class 11 or 12. Stream choices, subject selections and your first '
             'internship all happen in the next 12 to 18 months. This report is designed to '
             'help you make those choices deliberately, not by default.')
-
-    callout_box(story, 'Guided session available',
-        'Want help making sense of this report? Message us on WhatsApp at [WhatsApp Number] '
-        'to schedule a session. It is not a sales call.')
 
     items_list = [
         ('Your thinking style',
@@ -499,6 +494,10 @@ def _build_about(ctx):
             textColor=C_MUTED, leading=13, spaceAfter=6)
         story.append(Paragraph(f'&#8227;  {pri}', ps))
         story.append(Paragraph(f'    {sec}', ss))
+
+    callout_box(story, 'Talk it through with us',
+        'Once you have read the report, message us on WhatsApp at ' + WA_LINK +
+        '. We will help you turn it into a concrete next step. No pitch, no pressure.')
 
     story.append(PageBreak())
     return story
