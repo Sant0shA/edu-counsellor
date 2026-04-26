@@ -37,6 +37,30 @@ function escHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// ── Disposable email domain blocklist ────────────────────────────────────────
+const DISPOSABLE_DOMAINS = new Set([
+  // High-volume throwaway services
+  'mailinator.com','guerrillamail.com','guerrillamail.net','guerrillamail.org',
+  'guerrillamail.info','guerrillamailblock.com','grr.la','sharklasers.com',
+  'tempmail.com','temp-mail.org','throwam.com','throwaway.email',
+  'spam4.me','trashmail.com','trashmail.me','trashmail.net','trashmail.org',
+  'dispostable.com','maildrop.cc','yopmail.com','yopmail.fr',
+  'getairmail.com','mailnull.com','spamgourmet.com','spamgourmet.net',
+  '10minutemail.com','10minutemail.net','10minutemail.org',
+  '20minutemail.com','disposablemail.com','fakeinbox.com',
+  'mailnesia.com','spamevader.net','spamevader.com',
+  'mytemp.email','tempinbox.com','tempr.email','discard.email',
+  'crazymailing.com','spamfree24.org','spamfree24.de','spamfree24.eu',
+  'spamgob.com','spamspot.com','spamthis.co.uk',
+  // Realistic-looking but disposable
+  'poisonword.com','byom.de','gowikipedia.org','pookmail.com',
+  'trillianpro.com','rppkn.com','gishpuppy.com','lroid.com',
+  'fakedemail.com','fakemailgenerator.com',
+  // OTP-farming
+  'mohmal.com','spamgmail.net','spamgmail.com','mailinater.com',
+  'mailismagic.com','getonemail.com','owlpic.com',
+]);
+
 // ── Auth token: HMAC-signed { userId, email, expiresAt } ──────────────────────
 // Format: base64url(payload).hex(hmacSha256(SECRET, payload))
 // Stateless — no DB lookup; matches existing 30-day session window.
@@ -536,6 +560,10 @@ app.post('/api/auth/otp/send', async (req, res) => {
   }
 
   const normalEmail = email.trim().toLowerCase();
+  const emailDomain = normalEmail.split('@')[1] || '';
+  if (DISPOSABLE_DOMAINS.has(emailDomain)) {
+    return res.status(400).json({ error: 'Please use a permanent email address — disposable inboxes are not supported.' });
+  }
 
   // Per-IP cap: stop email-rotation flooding (cost bleed on Resend)
   const ip = req.ip || 'unknown';
