@@ -341,7 +341,8 @@ export const personal = [
     singleSelect: true,
     question: "Which subject have you consistently done well in — even if it's not your favourite?",
     options: [
-      'Maths or Science',
+      'Maths or Statistics',
+      'Physics, Chemistry or Biology',
       'English or Languages',
       'Social Studies or History',
       'Arts or Music',
