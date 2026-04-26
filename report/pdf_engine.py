@@ -266,6 +266,15 @@ def _block_paths(career_data):
         return []
     items = career_header('Paths within this domain')
     _demand_colors = {'Strong': '#1D9E75', 'Moderate': '#C97A00', 'Niche': '#888888'}
+    legend_style = ParagraphStyle('demand_legend', fontName='Helvetica',
+        fontSize=8, leading=11, textColor=HexColor('#666666'), spaceAfter=4)
+    items.append(Paragraph(
+        'Demand reflects India hiring activity: '
+        f'<font color="{_demand_colors["Strong"]}"><b>Strong</b></font> = active hiring, clear salary benchmarks  &#183;  '
+        f'<font color="{_demand_colors["Moderate"]}"><b>Moderate</b></font> = real career, needs specific degree or certification  &#183;  '
+        f'<font color="{_demand_colors["Niche"]}"><b>Niche</b></font> = few roles, vocation track over salary track',
+        legend_style))
+    items.append(sp(4))
     for p in paths[:6]:
         demand = p.get('demand', '')
         color = _demand_colors.get(demand, '')
