@@ -86,6 +86,7 @@ WRITING RULES:
 - Never mention cognitive question scores, correct/incorrect answers, or any reference to how the student performed on reasoning questions. Do not say they scored low, scored high, or anything about their cognitive performance. Use the cognitive data only to inform the thinking style description without referencing the questions.
 - Do not mention any animal (real or metaphorical) in any section. Do not use complex vocabulary; this report may be read by a 15-year-old. Write as you would speak to a bright teenager: plain words, short sentences, no jargon.
 - For internship discovery, only name these platforms in the "how" field: Internshala, LinkedIn, Unstop, AngelList India, Devfolio. Do not name specific media outlets, NGOs, companies, or organisations — they change and may be defunct. Describe the type of organisation instead.
+- Do not name specific YouTube channels, creators, websites, apps, or books anywhere in the report. Describe the type of content or resource instead (e.g. "a documentary on how courts work" not "Serial" or "Netflix"; "a YouTube channel explaining engineering concepts" not "Kurzgesagt").
 - Return only valid JSON as specified in each request; no markdown, no extra text"""
 
 

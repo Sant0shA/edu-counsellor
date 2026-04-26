@@ -87,6 +87,7 @@ Coaching rules:
 - The third domain should genuinely surprise them — not the obvious choice
 - Do not dismiss any interest — reframe it if needed
 - Use location and relocation signals to keep suggestions realistic for Indian students
+- Do not name specific YouTube channels, creators, websites, apps, or books in the explore field. Describe the type of content instead (e.g. "a YouTube channel explaining how courts work" not "Kurzgesagt" or "3Blue1Brown")
 
 ${streamAnswer || degreeAnswer ? `STUDENT CONTEXT:
 ${[streamAnswer ? `  Current school stream: ${streamAnswer}` : '', degreeAnswer ? `  Degree or field of study: ${degreeAnswer}` : ''].filter(Boolean).join('\n')}
