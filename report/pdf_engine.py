@@ -1,6 +1,11 @@
 """ReportLab PDF renderer for CareerShifu reports — visual layer from reference design."""
 
 import io
+from datetime import date
+
+WA_LINK = '<a href="https://wa.me/919004493138" color="#25D366"><b>9004493138</b></a>'
+CURRENT_YEAR = date.today().year
+GENERATED_ON = date.today().strftime('%d %b %Y')
 
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
@@ -161,7 +166,7 @@ def _make_later_pages(headline):
         canvas.rect(0, 0, W_PAGE, 8*mm, fill=1, stroke=0)
         canvas.setFont('Helvetica', 7.5); canvas.setFillColor(C_MUTED)
         canvas.drawCentredString(W_PAGE / 2, 3*mm,
-            f'Page {doc.page}  ·  Confidential — for student use only  ·  CareerShifu 2025')
+            f'Page {doc.page}  ·  Confidential, for academic use only  ·  CareerShifu {CURRENT_YEAR}')
         canvas.restoreState()
     return later_pages
 
@@ -307,8 +312,9 @@ def _block_degrees(career_data, is_undergrad):
             items.append(Paragraph(note, S['ug_note']))
     amber_note(items,
         'Guidance reflects general pathways across boards. '
+        f'Schedule a call with us for personal guidance on WhatsApp at {WA_LINK}. '
         'Your counsellor will personalise this for your specific board, '
-        'location and current subjects on the call.')
+        'location and current subjects.')
     return items
 
 
@@ -450,7 +456,7 @@ def _build_cover(ctx):
     ]))
     story.append(t)
     story.append(sp(22 * mm))
-    story.append(Paragraph('3 careers  ·  Personalised  ·  2025', S['cover_tagline']))
+    story.append(Paragraph(f'3 careers  ·  Personalised  ·  Generated {GENERATED_ON}', S['cover_tagline']))
     story.append(PageBreak())
     return story
 
@@ -639,7 +645,7 @@ def _build_what_next():
     closing.append(Paragraph('Talk to a counsellor.', closing_cta))
     closing.append(Paragraph(
         'This report works best alongside a guided conversation. Schedule a session with a CareerShifu '
-        'counsellor on WhatsApp at <b>9004493138</b>, or reach out to your school counsellor for advice '
+        f'counsellor on WhatsApp at {WA_LINK}, or reach out to your school counsellor for advice '
         'tailored to your specific context, board and family situation.',
         closing_body))
 
@@ -657,10 +663,10 @@ def _build_what_next():
 
     story.append(HRFlowable(width='100%', thickness=0.5, color=C_RULE, spaceAfter=8))
     story.append(Paragraph(
-        'CareerShifu 2025  ·  Confidential, for the student named on the cover only.  '
+        f'CareerShifu {CURRENT_YEAR}  ·  Confidential, for the student only.  '
         'Guidance reflects general pathways across boards. '
         'Specific college options, entrance exams and cutoffs can be explored '
-        'in a guided session. Message us on WhatsApp at 9004493138 to schedule.',
+        f'in a guided session. Message us on WhatsApp at {WA_LINK} to schedule a personal session.',
         S['small_muted']))
     return story
 
