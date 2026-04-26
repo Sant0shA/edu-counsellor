@@ -265,7 +265,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
           <li><span className="feat-check">✓</span> Your strengths and areas to develop — drawn from your own answers</li>
           <li><span className="feat-check">✓</span> 6–8 personalised things to try over the next 3 months</li>
           <li><span className="feat-check">✓</span> <strong>A parent summary</strong> — written for them, so the conversation doesn't have to start from scratch</li>
-          <li><span className="feat-check">✓</span> WhatsApp support included — reach us at <a href="https://wa.me/919004493138" target="_blank" rel="noopener noreferrer" style={{ color: '#a53600' }}>9004493138</a> after you receive it</li>
+          <li><span className="feat-check">✓</span> WhatsApp support included — message us after you receive it and we'll respond within 24 hours</li>
         </ul>
 
         <div className="counsellor-callout">

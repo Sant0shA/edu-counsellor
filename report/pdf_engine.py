@@ -604,12 +604,54 @@ def _build_what_next():
         story.append(sp(8))
 
     story.append(sp(12))
+
+    closing_title = ParagraphStyle('ct', fontName='Helvetica-Bold', fontSize=11,
+        textColor=C_AMBER_TEXT, leading=14, spaceAfter=4)
+    closing_body = ParagraphStyle('cb', fontName='Helvetica', fontSize=9,
+        textColor=C_AMBER_TEXT, leading=13, spaceAfter=6)
+    closing_cta = ParagraphStyle('cc', fontName='Helvetica-Bold', fontSize=10,
+        textColor=C_AMBER_TEXT, leading=13, spaceAfter=4)
+
+    closing = []
+    closing.append(Paragraph('A note on what this report can and cannot tell you', closing_title))
+    closing.append(Paragraph(
+        'This report is intended to show you possibilities based on your aptitude and personality. '
+        'It is meant to open doors, not close them. The careers, paths and demand notes here are '
+        'starting points for exploration, not verdicts.',
+        closing_body))
+    closing.append(Paragraph(
+        'Some careers come with eligibility requirements that an aptitude assessment cannot evaluate. '
+        '<b>Aviation (pilot, cabin crew), defence (NDA, CDS, AFCAT), maritime careers, and civil services '
+        '(UPSC and equivalent)</b> are gated by medical standards, physical fitness, age limits, entrance '
+        'examinations and selection boards that are independent of aptitude or personality. If any of these '
+        'directions interest you, treat this report as a signal to explore further, then verify eligibility '
+        'through the official channels (DGCA, UPSC, NDA, IMU).',
+        closing_body))
+    closing.append(Paragraph('Talk to a counsellor.', closing_cta))
+    closing.append(Paragraph(
+        'This report works best alongside a guided conversation. Schedule a session with a CareerShifu '
+        'counsellor on WhatsApp at <b>9004493138</b>, or reach out to your school counsellor for advice '
+        'tailored to your specific context, board and family situation.',
+        closing_body))
+
+    closing_table = Table([[closing]], colWidths=[FULL_W])
+    closing_table.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), C_AMBER_BG),
+        ('BOX',           (0, 0), (-1, -1), 0.6, HexColor('#E8C97A')),
+        ('TOPPADDING',    (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 14),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 14),
+    ]))
+    story.append(closing_table)
+    story.append(sp(10))
+
     story.append(HRFlowable(width='100%', thickness=0.5, color=C_RULE, spaceAfter=8))
     story.append(Paragraph(
         'CareerShifu 2025  ·  Confidential, for the student named on the cover only.  '
         'Guidance reflects general pathways across boards. '
         'Specific college options, entrance exams and cutoffs can be explored '
-        'in a guided session — message us on WhatsApp to schedule.',
+        'in a guided session. Message us on WhatsApp at 9004493138 to schedule.',
         S['small_muted']))
     return story
 
