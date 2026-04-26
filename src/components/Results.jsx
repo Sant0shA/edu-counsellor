@@ -391,7 +391,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
       {/* WhatsApp share */}
       <a
         className="btn-whatsapp"
-        href={`https://wa.me/?text=${encodeURIComponent('Took me 5 mins and the result was surprisingly specific to me. Worth trying if you\'re figuring out careers or streams. It\'s free 👉 https://careershifu.com/')}`}
+        href={`https://wa.me/?text=${encodeURIComponent('Took me 5 mins and the result was surprisingly specific to me. Worth trying if you are figuring out careers or streams. It\'s free 👉 https://app.careershifu.com/\n\nUse code GOAL26 for a flat ₹100 off the full report.')}`}
         target="_blank"
         rel="noopener noreferrer"
       >
