@@ -383,9 +383,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
           ))}
         </div>
 
-        <p className="report-disclaimer">
-          Stream and course guidance reflects CBSE/ISC 2025 pathways.
-        </p>
+
       </div>
 
       {/* WhatsApp share */}
