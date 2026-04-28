@@ -372,6 +372,8 @@ export const personal = [
     hint: 'Choose 1 or 2 that resonate most',
     options: [
       'A startup founder or entrepreneur',
+      'A software engineer, tech entrepreneur or AI/robotics builder',
+      'A civil engineer, mechanical engineer or architect',
       'A doctor, scientist or researcher',
       'A designer, filmmaker or artist',
       'A coach, teacher or social worker',
