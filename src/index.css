@@ -1252,6 +1252,29 @@ p { color: var(--text); }
 .paths-lock-note:hover {
   text-decoration: underline;
 }
+.paths-lock-cta {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 16px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.paths-lock-cta-primary {
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #3C3489;
+}
+.paths-lock-cta-benefit {
+  font-family: 'Manrope', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #594139;
+}
+.paths-lock-cta:hover .paths-lock-cta-primary {
+  text-decoration: underline;
+}
 .report-disclaimer {
   font-size: 11px;
   color: var(--text-faint);

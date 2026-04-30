@@ -12,6 +12,12 @@ const GRADE_LABELS = {
   'Graduate / Working': 'Transition Point',
 };
 
+const REPORT_CTA_BENEFITS = [
+  'See all career paths',
+  'Get subject guidance specific to your grade',
+  'Get a parent summary written for them to read',
+];
+
 const VALUE_PROPS = [
   {
     text: <>Always assumed you'd follow a familiar path because that's what everyone around you did? This report looks at <strong>how you actually think</strong> — not just your marks or what's expected.</>,
@@ -225,8 +231,9 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
             )}
 
             {(d.paths || []).length > 2 && (
-              <a className="paths-lock-note" href="#report-card">
-                See all 5 paths in your CareerShifu Report →
+              <a className="paths-lock-cta" href="#report-card">
+                <span className="paths-lock-cta-primary">Download now →</span>
+                <span className="paths-lock-cta-benefit">{REPORT_CTA_BENEFITS[i] || REPORT_CTA_BENEFITS[0]}</span>
               </a>
             )}
           </div>
