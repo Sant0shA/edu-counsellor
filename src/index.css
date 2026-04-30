@@ -1262,9 +1262,10 @@ p { color: var(--text); }
 }
 .paths-lock-cta-primary {
   font-family: 'Manrope', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 800;
   color: #3C3489;
+  letter-spacing: -0.2px;
 }
 .paths-lock-cta-benefit {
   font-family: 'Manrope', sans-serif;
