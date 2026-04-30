@@ -232,7 +232,7 @@ export default function Results({ result, sessionId, grade, userId, userEmail, o
 
             {(d.paths || []).length > 2 && (
               <a className="paths-lock-cta" href="#report-card">
-                <span className="paths-lock-cta-primary">Download now →</span>
+                <span className="paths-lock-cta-primary">Download FULL REPORT now →</span>
                 <span className="paths-lock-cta-benefit">{REPORT_CTA_BENEFITS[i] || REPORT_CTA_BENEFITS[0]}</span>
               </a>
             )}
