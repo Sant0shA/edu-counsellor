@@ -1,59 +1,101 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 
-function NavItem({ icon, label, active, onClick, to }) {
-  const navigate = useNavigate();
-  return (
-    <button
-      onClick={onClick || (() => navigate(to))}
-      className={`w-full flex items-center gap-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-        active
-          ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-600 pl-3 pr-4'
-          : 'text-slate-600 hover:bg-slate-100 pl-4 pr-4 border-l-4 border-transparent'
-      }`}>
-      <span className={`material-symbols-outlined ${active ? 'symbol-fill' : ''}`} style={{ fontSize: '20px' }}>
-        {icon}
-      </span>
-      {label}
-    </button>
-  );
-}
+const NAV = [
+  { icon: 'dashboard', label: 'Dashboard', to: '/school', exact: true },
+  { icon: 'group', label: 'Cohorts', to: '/school/cohorts', exact: false },
+  { icon: 'person_search', label: 'Student Directory', to: null },
+  { icon: 'assessment', label: 'Reports', to: null },
+  { icon: 'settings', label: 'Settings', to: null },
+];
 
-export default function Sidebar() {
+export default function Sidebar({ schoolName }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const onDashboard = location.pathname === '/school';
-  const onCohorts = location.pathname.startsWith('/school/cohorts');
+  function active(item) {
+    if (!item.to) return false;
+    if (item.exact) return location.pathname === item.to;
+    return location.pathname.startsWith(item.to);
+  }
 
   function signOut() {
     localStorage.removeItem('cs_staff_auth');
     navigate('/school/login');
   }
 
+  const initial = (schoolName || 'G').charAt(0).toUpperCase();
+
   return (
-    <aside className="flex flex-col h-full w-full bg-slate-50">
+    <aside className="flex flex-col h-full w-full bg-slate-50 font-sora">
       {/* Branding */}
-      <div className="px-5 py-5 border-b border-slate-200">
+      <div className="px-4 pt-5 pb-6">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
-            <span className="text-white text-xs font-bold tracking-tight">CS</span>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-black text-xl shrink-0"
+            style={{ background: '#00236f' }}>
+            {initial}
           </div>
-          <div>
-            <p className="text-sm font-bold text-slate-900 leading-tight">CareerShifu</p>
-            <p className="text-xs text-slate-400">Counselor Portal</p>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-slate-900 leading-tight truncate">{schoolName || 'CareerShifu'}</p>
+            <p className="text-[10px] uppercase font-semibold text-slate-400 tracking-widest mt-0.5">Counselor Portal</p>
           </div>
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        <NavItem icon="dashboard" label="Dashboard" active={onDashboard} to="/school" />
-        <NavItem icon="group" label="Cohorts" active={onCohorts} to="/school" />
+      {/* Nav items */}
+      <nav className="flex-1 px-3 space-y-0.5">
+        {NAV.map(item => {
+          const isActive = active(item);
+          const clickable = !!item.to;
+          return (
+            <button key={item.label}
+              onClick={() => clickable && navigate(item.to)}
+              disabled={!clickable}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                isActive
+                  ? 'bg-white text-[#1E3A8A] shadow-sm ring-1 ring-slate-200'
+                  : clickable
+                    ? 'text-slate-600 hover:text-[#1E3A8A] hover:bg-white/70'
+                    : 'text-slate-300 cursor-not-allowed'
+              }`}>
+              <span className="material-symbols-outlined" style={{
+                fontSize: '20px',
+                fontVariationSettings: isActive ? "'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24" : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+              }}>
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
       </nav>
 
-      {/* Sign out */}
-      <div className="px-3 py-4 border-t border-slate-200">
-        <NavItem icon="logout" label="Sign out" active={false} onClick={signOut} />
+      {/* Bottom section */}
+      <div className="px-3 pb-4 space-y-1">
+        {/* New Entry CTA */}
+        <button
+          className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all"
+          style={{ background: '#00236f', color: '#fff' }}
+          onMouseEnter={e => e.currentTarget.style.background = '#001a52'}
+          onMouseLeave={e => e.currentTarget.style.background = '#00236f'}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+          New Entry
+        </button>
+
+        {/* Help Center */}
+        <button className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-400 hover:text-slate-600 hover:bg-white/70 rounded-lg text-sm font-medium transition-all">
+          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>help</span>
+          Help Center
+        </button>
+
+        {/* Sign out */}
+        <div className="border-t border-slate-200 pt-1 mt-1">
+          <button onClick={signOut}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-all">
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>logout</span>
+            Sign out
+          </button>
+        </div>
       </div>
     </aside>
   );
