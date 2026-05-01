@@ -23,6 +23,13 @@ function avatarGradient(name) {
   return GRADIENTS[(name || '?').charCodeAt(0) % GRADIENTS.length];
 }
 
+function studentStatus(student) {
+  if (student.report_status === 'done') return { label: 'Report Ready', cls: 'bg-indigo-50 text-indigo-600' };
+  if (student.report_status === 'pending' || student.report_status === 'generating') return { label: 'Generating…', cls: 'bg-amber-50 text-amber-600' };
+  if (student.headline) return { label: 'Assessed', cls: 'bg-sky-50 text-sky-600' };
+  return { label: 'Pending', cls: 'bg-slate-100 text-slate-400' };
+}
+
 function ReportButton({ student, stopProp }) {
   const [loading, setLoading] = useState(false);
 
@@ -58,18 +65,20 @@ function ReportButton({ student, stopProp }) {
   );
 }
 
+const NOTE_TAGS = ['Academic', 'Social-Emotional', 'College Prep'];
+
 function StudentModal({ student, onClose }) {
   const [notes, setNotes] = useState(null);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const inputRef = useRef(null);
+  const status = studentStatus(student);
 
   const initials = getInitials(student.display_name);
   const gradient = avatarGradient(student.display_name);
 
   useEffect(() => {
     loadNotes();
-    // focus input after mount
     setTimeout(() => inputRef.current?.focus(), 100);
 
     function onKey(e) {
@@ -97,30 +106,37 @@ function StudentModal({ student, onClose }) {
     }
   }
 
+  function insertTag(tag) {
+    setDraft(d => d ? `${d} #${tag}` : `#${tag} `);
+    inputRef.current?.focus();
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)' }}>
 
       <div
-        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-slate-100">
           <div className="flex items-start gap-4">
             <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
-              <span className="text-slate-700 text-xl font-bold">{initials}</span>
+              <span className="text-slate-700 text-xl font-bold font-sora">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-bold text-slate-900 leading-tight">{student.display_name}</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold text-slate-900 leading-tight font-sora">{student.display_name}</h2>
+                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${status.cls}`}>{status.label}</span>
+              </div>
               {student.session_grade && (
                 <p className="text-sm text-slate-400 mt-0.5">{student.session_grade}</p>
               )}
-              {student.headline && (
+              {student.headline ? (
                 <p className="text-sm text-slate-500 italic mt-2 leading-snug">"{student.headline}"</p>
-              )}
-              {!student.headline && (
+              ) : (
                 <p className="text-xs text-slate-300 italic mt-2">Assessment not yet completed</p>
               )}
             </div>
@@ -137,7 +153,7 @@ function StudentModal({ student, onClose }) {
           )}
         </div>
 
-        {/* Notes section */}
+        {/* Notes */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Counselor Notes</p>
 
@@ -172,7 +188,7 @@ function StudentModal({ student, onClose }) {
 
         {/* Add note form */}
         <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/80">
-          <form onSubmit={save} className="space-y-2">
+          <form onSubmit={save} className="space-y-3">
             <textarea
               ref={inputRef}
               value={draft}
@@ -181,11 +197,32 @@ function StudentModal({ student, onClose }) {
               rows={3}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white placeholder-slate-300 resize-none leading-relaxed"
             />
-            <div className="flex justify-end">
-              <button type="submit" disabled={saving || !draft.trim()}
-                className="text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl px-5 py-2.5 disabled:opacity-40 transition-colors">
-                {saving ? 'Saving…' : 'Save note'}
+            {/* Tags */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 shrink-0">Tag:</span>
+              {NOTE_TAGS.map(tag => (
+                <button key={tag} type="button" onClick={() => insertTag(tag)}
+                  className="text-xs font-medium text-slate-500 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 rounded-full px-3 py-1 transition-colors">
+                  {tag}
+                </button>
+              ))}
+            </div>
+            {/* Footer row */}
+            <div className="flex items-center justify-between">
+              <button type="button"
+                className="text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+                View History
               </button>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={onClose}
+                  className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving || !draft.trim()}
+                  className="text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl px-5 py-2 disabled:opacity-40 transition-colors font-sora">
+                  {saving ? 'Saving…' : 'Save note'}
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -200,24 +237,28 @@ function StudentCard({ student, sameNameCount, onClick }) {
   const disambiguator = sameNameCount > 1 && student.domains?.[0]?.name
     ? student.domains[0].name
     : null;
+  const status = studentStatus(student);
 
   return (
     <div
       onClick={onClick}
       className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col gap-3 cursor-pointer group">
 
-      {/* Avatar + name */}
+      {/* Avatar + name + status */}
       <div className="flex items-start gap-3">
         <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
-          <span className="text-slate-700 text-lg font-bold">{initials}</span>
+          <span className="text-slate-700 text-lg font-bold font-sora">{initials}</span>
         </div>
         <div className="flex-1 min-w-0 pt-1">
-          <p className="text-base font-semibold text-slate-900 group-hover:text-indigo-700 leading-tight transition-colors">
+          <p className="text-base font-semibold text-slate-900 group-hover:text-indigo-700 leading-tight transition-colors font-sora">
             {student.display_name}
           </p>
-          {student.session_grade && (
-            <span className="text-xs text-slate-400">{student.session_grade}</span>
-          )}
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {student.session_grade && (
+              <span className="text-xs text-slate-400">{student.session_grade}</span>
+            )}
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${status.cls}`}>{status.label}</span>
+          </div>
           {disambiguator && (
             <p className="text-xs text-slate-400 mt-0.5">{disambiguator}</p>
           )}
@@ -290,7 +331,7 @@ export default function CohortDetail() {
 
         <div className="flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-2xl font-bold text-slate-900 font-sora">
               {loading ? '—' : cohortName}
             </h1>
             {!loading && students.length > 0 && (
@@ -304,7 +345,7 @@ export default function CohortDetail() {
               <div className="w-28 h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
               </div>
-              <span className="text-sm font-semibold text-indigo-600">{pct}%</span>
+              <span className="text-sm font-semibold text-indigo-600 font-sora">{pct}%</span>
             </div>
           )}
         </div>

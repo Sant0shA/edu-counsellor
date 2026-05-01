@@ -25,16 +25,14 @@ function CohortCard({ cohort }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 hover:border-indigo-200 hover:shadow-md transition-all flex flex-col gap-5">
       <div className="flex items-center gap-5">
-        {/* Donut */}
         <div className="relative shrink-0">
           <DonutRing pct={pct} size={80} strokeWidth={6} color="#6366f1" />
-          <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-indigo-600">
+          <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-indigo-600 font-sora">
             {pct}%
           </span>
         </div>
-
         <div className="flex-1 min-w-0">
-          <p className="text-lg font-bold text-slate-900 leading-tight">{cohort.name}</p>
+          <p className="text-lg font-bold text-slate-900 leading-tight font-sora">{cohort.name}</p>
           {students > 0 && (
             <span className={`mt-2 inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${
               pct >= 50
@@ -47,7 +45,6 @@ function CohortCard({ cohort }) {
         </div>
       </div>
 
-      {/* Mini stats */}
       <div className="grid grid-cols-3 gap-3 border-t border-slate-100 pt-5">
         {[
           { label: 'Students', value: students },
@@ -55,7 +52,7 @@ function CohortCard({ cohort }) {
           { label: 'Complete', value: `${pct}%` },
         ].map(s => (
           <div key={s.label} className="text-center">
-            <p className="text-2xl font-bold text-slate-800">{s.value}</p>
+            <p className="text-2xl font-bold text-slate-800 font-sora">{s.value}</p>
             <p className="text-xs text-slate-400 mt-0.5">{s.label}</p>
           </div>
         ))}
@@ -63,7 +60,7 @@ function CohortCard({ cohort }) {
 
       <button
         onClick={() => navigate(`/school/cohorts/${cohort.id}`)}
-        className="w-full text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl py-3 transition-colors">
+        className="w-full text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl py-3 transition-colors font-sora">
         View Progress →
       </button>
     </div>
@@ -93,29 +90,26 @@ export default function SchoolDashboard() {
       {/* Stat strip */}
       {!loading && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-          {/* Total students */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-5">
             <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined symbol-fill text-indigo-600" style={{ fontSize: '26px' }}>group</span>
             </div>
             <div>
-              <p className="text-3xl font-bold text-slate-900">{totalStudents}</p>
+              <p className="text-3xl font-bold text-slate-900 font-sora">{totalStudents}</p>
               <p className="text-sm text-slate-400 mt-0.5">Total students</p>
             </div>
           </div>
 
-          {/* Reports ready */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-5">
             <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined symbol-fill text-emerald-600" style={{ fontSize: '26px' }}>task_alt</span>
             </div>
             <div>
-              <p className="text-3xl font-bold text-slate-900">{totalReports}</p>
+              <p className="text-3xl font-bold text-slate-900 font-sora">{totalReports}</p>
               <p className="text-sm text-slate-400 mt-0.5">Reports ready</p>
             </div>
           </div>
 
-          {/* Overall completion */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-5">
             <div className="relative shrink-0">
               <DonutRing pct={pct} size={56} strokeWidth={5} color="#7c3aed" />
@@ -124,17 +118,15 @@ export default function SchoolDashboard() {
               </span>
             </div>
             <div>
-              <p className="text-3xl font-bold text-slate-900">{pct}%</p>
+              <p className="text-3xl font-bold text-slate-900 font-sora">{pct}%</p>
               <p className="text-sm text-slate-400 mt-0.5">Overall completion</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Section heading */}
       <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-5">Your Cohorts</h2>
 
-      {/* Cohort grid */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2].map(i => (
@@ -144,7 +136,7 @@ export default function SchoolDashboard() {
       ) : cohorts.length === 0 ? (
         <div className="text-center py-24">
           <span className="material-symbols-outlined text-slate-300" style={{ fontSize: '56px' }}>group</span>
-          <p className="text-base text-slate-500 font-semibold mt-4">No cohorts yet</p>
+          <p className="text-base text-slate-500 font-semibold mt-4 font-sora">No cohorts yet</p>
           <p className="text-sm text-slate-400 mt-1">Ask your administrator to set up cohorts.</p>
         </div>
       ) : (

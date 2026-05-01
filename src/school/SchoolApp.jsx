@@ -35,17 +35,26 @@ function TopHeader({ schoolName }) {
   const initial = (auth.name || 'C').charAt(0).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between shrink-0">
-      <div className="flex items-center gap-3">
-        <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center md:hidden">
-          <span className="text-white text-xs font-bold">CS</span>
-        </div>
-        <p className="text-sm font-semibold text-slate-800">{schoolName || 'CareerShifu'}</p>
+    <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between shrink-0 font-sora">
+      {/* Search */}
+      <div className="relative hidden sm:block w-72">
+        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" style={{ fontSize: '16px' }}>search</span>
+        <input type="text" placeholder="Search students, cohorts…"
+          className="w-full bg-slate-100 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 placeholder-slate-400" />
       </div>
-      <div className="flex items-center gap-2.5">
-        <p className="text-sm text-slate-500 hidden sm:block">{auth.name}</p>
-        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-          <span className="text-indigo-700 text-sm font-bold">{initial}</span>
+      {/* Right cluster */}
+      <div className="flex items-center gap-3 ml-auto">
+        <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">
+          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>notifications</span>
+        </button>
+        <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">
+          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>help</span>
+        </button>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+            <span className="text-indigo-700 text-sm font-bold">{initial}</span>
+          </div>
+          <p className="text-sm font-medium text-slate-700 hidden sm:block">{auth.name}</p>
         </div>
       </div>
     </header>
@@ -88,7 +97,7 @@ function Layout({ children }) {
     <div className="fixed inset-0 flex font-body bg-slate-50" style={{ zIndex: 1 }}>
       {/* Sidebar column — in flex flow, desktop only */}
       <div className="hidden md:flex w-64 shrink-0 border-r border-slate-200 flex-col">
-        <Sidebar />
+        <Sidebar schoolName={school?.name} />
       </div>
       {/* Main column — fills remaining width, scrolls independently */}
       <div className="flex-1 flex flex-col overflow-y-auto min-w-0">
