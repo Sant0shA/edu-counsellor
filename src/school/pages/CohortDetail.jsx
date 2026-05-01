@@ -3,185 +3,196 @@ import { createPortal } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import { schoolApi } from '../utils/schoolApi';
 
+/* ─── helpers ─── */
 const GRADIENTS = [
-  'from-violet-100 to-purple-200',
-  'from-sky-100 to-blue-200',
-  'from-emerald-100 to-teal-200',
-  'from-rose-100 to-pink-200',
-  'from-amber-100 to-orange-200',
-  'from-indigo-100 to-violet-200',
-  'from-cyan-100 to-sky-200',
-  'from-fuchsia-100 to-purple-200',
+  'from-violet-100 to-purple-200', 'from-sky-100 to-blue-200',
+  'from-emerald-100 to-teal-200',  'from-rose-100 to-pink-200',
+  'from-amber-100 to-orange-200',  'from-indigo-100 to-violet-200',
+  'from-cyan-100 to-sky-200',      'from-fuchsia-100 to-purple-200',
 ];
-
-function getInitials(name) {
-  const parts = (name || '?').trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+function initials(name) {
+  const p = (name || '?').trim().split(/\s+/);
+  return p.length === 1 ? p[0].slice(0, 2).toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase();
+}
+function gradient(name) { return GRADIENTS[(name || '?').charCodeAt(0) % GRADIENTS.length]; }
+function statusOf(s) {
+  if (s.report_status === 'done') return { label: 'Report Ready', bg: '#eef2ff', color: '#4338ca' };
+  if (s.report_status === 'pending' || s.report_status === 'generating') return { label: 'Generating…', bg: '#fffbeb', color: '#d97706' };
+  if (s.headline) return { label: 'Assessed', bg: '#e0f2fe', color: '#0369a1' };
+  return { label: 'Pending', bg: '#f1f5f9', color: '#94a3b8' };
 }
 
-function avatarGradient(name) {
-  return GRADIENTS[(name || '?').charCodeAt(0) % GRADIENTS.length];
-}
-
-function studentStatus(student) {
-  if (student.report_status === 'done') return { label: 'Report Ready', cls: 'bg-indigo-50 text-indigo-600' };
-  if (student.report_status === 'pending' || student.report_status === 'generating') return { label: 'Generating…', cls: 'bg-amber-50 text-amber-600' };
-  if (student.headline) return { label: 'Assessed', cls: 'bg-sky-50 text-sky-600' };
-  return { label: 'Pending', cls: 'bg-slate-100 text-slate-400' };
-}
-
+/* ─── ReportButton ─── */
 function ReportButton({ student, stopProp }) {
-  const [loading, setLoading] = useState(false);
-
-  if (!student.report_queue_id) return null;
-
-  if (student.report_status !== 'done') {
-    return (
-      <span className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-full px-3 py-1.5">
-        {student.report_status === 'pending' || student.report_status === 'generating' ? 'Generating…' : ''}
-      </span>
-    );
-  }
-
+  const [busy, setBusy] = useState(false);
+  if (!student.report_queue_id || student.report_status !== 'done') return null;
   async function open(e) {
     if (stopProp) e.stopPropagation();
-    setLoading(true);
-    try {
-      const data = await schoolApi.getReportUrl(student.report_queue_id);
-      window.open(data.url, '_blank', 'noopener');
-    } catch {
-      alert('Report not available. Try again shortly.');
-    } finally {
-      setLoading(false);
-    }
+    setBusy(true);
+    try { const d = await schoolApi.getReportUrl(student.report_queue_id); window.open(d.url, '_blank', 'noopener'); }
+    catch { alert('Report not available. Try again shortly.'); }
+    finally { setBusy(false); }
   }
-
   return (
-    <button onClick={open} disabled={loading}
+    <button onClick={open} disabled={busy}
       className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-full px-3 py-1.5 transition-colors disabled:opacity-50 whitespace-nowrap">
-      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-      {loading ? '…' : 'Report'}
+      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>open_in_new</span>
+      {busy ? '…' : 'Report'}
     </button>
   );
 }
 
-const NOTE_TAGS = ['Academic', 'Social-Emotional', 'College Prep'];
+/* ─── StudentModal ─── */
+const TAGS = ['Academic', 'Social-Emotional', 'College Prep'];
 
 function StudentModal({ student, onClose }) {
   const [notes, setNotes] = useState(null);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
-  const inputRef = useRef(null);
-  const status = studentStatus(student);
+  const ref = useRef(null);
+  const st = statusOf(student);
 
   useEffect(() => {
-    loadNotes();
-    setTimeout(() => inputRef.current?.focus(), 100);
-    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    load();
+    setTimeout(() => ref.current?.focus(), 80);
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [student.id]);
 
-  async function loadNotes() {
-    const data = await schoolApi.getNotes(student.id).catch(() => ({ notes: [] }));
-    setNotes(data.notes);
+  async function load() {
+    const d = await schoolApi.getNotes(student.id).catch(() => ({ notes: [] }));
+    setNotes(d.notes);
   }
-
-  async function save(e) {
-    e.preventDefault();
+  async function save() {
     if (!draft.trim()) return;
     setSaving(true);
-    try {
-      await schoolApi.addNote(student.id, draft.trim());
-      setDraft('');
-      loadNotes();
-    } finally {
-      setSaving(false);
-    }
+    try { await schoolApi.addNote(student.id, draft.trim()); setDraft(''); load(); }
+    finally { setSaving(false); }
   }
+  function tag(t) { setDraft(d => d ? `${d} #${t}` : `#${t} `); ref.current?.focus(); }
 
-  function insertTag(tag) {
-    setDraft(d => d ? `${d} #${tag}` : `#${tag} `);
-    inputRef.current?.focus();
-  }
+  const last = notes?.length ? notes[notes.length - 1] : null;
+  const lastDate = last ? new Date(last.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
 
-  const lastNote = notes?.length > 0 ? notes[notes.length - 1] : null;
-  const lastEntryDate = lastNote
-    ? new Date(lastNote.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-    : null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6"
-      style={{ background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(6px)' }}>
-
-      <div
-        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col"
-        style={{ maxHeight: '90vh' }}
-        onClick={e => e.stopPropagation()}>
+  const modal = (
+    /* full-screen backdrop */
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '16px',
+      background: 'rgba(15,23,42,0.5)',
+      backdropFilter: 'blur(6px)',
+      WebkitBackdropFilter: 'blur(6px)',
+    }}>
+      {/* modal card */}
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#fff',
+        borderRadius: 20,
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+        width: '100%',
+        maxWidth: 500,
+        maxHeight: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}>
 
         {/* ── Header ── */}
-        <div className="px-6 pt-5 pb-4">
-          <div className="flex items-start gap-3">
-            {/* Icon avatar */}
-            <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-slate-400" style={{ fontSize: '24px' }}>person</span>
+        <div style={{ padding: '24px 24px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            {/* avatar */}
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: '#f1f5f9',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 22, color: '#94a3b8' }}>person</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-bold text-slate-900 font-sora leading-tight">{student.display_name}</h2>
-                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${status.cls}`}>{status.label}</span>
+            {/* name + badge + headline */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: 16, color: '#0f172a' }}>
+                  {student.display_name}
+                </span>
+                <span style={{
+                  fontSize: 11, fontWeight: 600, padding: '2px 10px',
+                  borderRadius: 99, background: st.bg, color: st.color,
+                }}>
+                  {st.label}
+                </span>
               </div>
-              {student.headline ? (
-                <p className="text-xs text-slate-400 italic mt-1 leading-snug">"{student.headline}"</p>
-              ) : (
-                <p className="text-xs text-slate-300 italic mt-1">Assessment not yet completed</p>
-              )}
+              <p style={{ fontSize: 13, color: '#94a3b8', fontStyle: 'italic', marginTop: 4, lineHeight: 1.4 }}>
+                {student.headline ? `"${student.headline}"` : 'Assessment not yet completed'}
+              </p>
             </div>
-            <button onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors shrink-0">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+            {/* close */}
+            <button onClick={onClose} style={{
+              width: 28, height: 28, borderRadius: 99, border: 'none',
+              background: 'transparent', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#94a3b8', flexShrink: 0,
+            }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
             </button>
           </div>
         </div>
 
-        {/* ── Counselor Notes section ── */}
-        <div className="px-6 pb-3">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[#1E3A8A]" style={{ fontSize: '16px' }}>description</span>
-              <span className="text-sm font-semibold text-[#1E3A8A] font-sora">Counselor Notes</span>
+        {/* ── Counselor Notes ── */}
+        <div style={{ padding: '0 24px 16px' }}>
+          {/* section header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#1e3a8a' }}>description</span>
+              <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: 14, color: '#1e3a8a' }}>
+                Counselor Notes
+              </span>
             </div>
-            {lastEntryDate && (
-              <span className="text-xs text-slate-400">Last Entry: {lastEntryDate}</span>
+            {lastDate && (
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>Last Entry: {lastDate}</span>
             )}
           </div>
 
-          {/* Notes list or empty state */}
-          <div className="rounded-xl bg-slate-50 border border-slate-100 overflow-y-auto" style={{ minHeight: '120px', maxHeight: '180px' }}>
+          {/* notes box */}
+          <div style={{
+            background: '#f0f4ff',
+            borderRadius: 12,
+            minHeight: 110,
+            maxHeight: 160,
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
             {notes === null && (
-              <div className="flex items-center justify-center h-28">
-                <p className="text-sm text-slate-400">Loading…</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: 110 }}>
+                <span style={{ fontSize: 13, color: '#94a3b8' }}>Loading…</span>
               </div>
             )}
-
             {notes?.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-                <span className="material-symbols-outlined text-[#1E3A8A]/30" style={{ fontSize: '32px' }}>edit_note</span>
-                <p className="text-sm font-medium text-slate-500 mt-2">No notes yet. Add your first observation below</p>
-                <p className="text-xs text-slate-400 mt-1">Document progress, behavioral changes, or intervention steps.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: 110, padding: '20px 16px', textAlign: 'center' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 32, color: '#93c5fd', marginBottom: 8 }}>edit_note</span>
+                <p style={{ fontSize: 13, fontWeight: 500, color: '#64748b', margin: 0 }}>
+                  No notes yet. Add your first observation below
+                </p>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+                  Document progress, behavioral changes, or intervention steps.
+                </p>
               </div>
             )}
-
             {notes?.length > 0 && (
-              <div className="p-3 space-y-2">
+              <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {notes.map(n => (
-                  <div key={n.id} className="flex gap-2.5 bg-white border border-slate-100 rounded-lg px-3 py-2.5">
-                    <div className="w-0.5 rounded-full bg-indigo-300 shrink-0 self-stretch" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-slate-700 leading-relaxed">{n.note}</p>
-                      <p className="text-xs text-slate-400 mt-1">
+                  <div key={n.id} style={{
+                    background: '#fff', borderRadius: 10,
+                    border: '1px solid #e2e8f0',
+                    padding: '10px 14px',
+                    display: 'flex', gap: 10,
+                  }}>
+                    <div style={{ width: 3, borderRadius: 99, background: '#818cf8', flexShrink: 0, alignSelf: 'stretch' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, margin: 0 }}>{n.note}</p>
+                      <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
                         {n.author} · {new Date(n.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
                     </div>
@@ -193,115 +204,143 @@ function StudentModal({ student, onClose }) {
         </div>
 
         {/* ── New Observation ── */}
-        <div className="px-6 pb-3">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">New Observation</p>
-          <div className="relative">
+        <div style={{ padding: '0 24px 12px' }}>
+          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#94a3b8', textTransform: 'uppercase', marginBottom: 8 }}>
+            New Observation
+          </p>
+          <div style={{ position: 'relative' }}>
             <textarea
-              ref={inputRef}
+              ref={ref}
               value={draft}
               onChange={e => setDraft(e.target.value)}
               placeholder="Write an observation, action item, or follow-up…"
               rows={4}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white placeholder-slate-300 resize-none leading-relaxed"
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                border: '1.5px solid #e2e8f0', borderRadius: 12,
+                padding: '12px 14px 28px',
+                fontSize: 14, color: '#334155',
+                resize: 'none', outline: 'none',
+                lineHeight: 1.6,
+                fontFamily: 'inherit',
+              }}
+              onFocus={e => e.target.style.borderColor = '#a5b4fc'}
+              onBlur={e => e.target.style.borderColor = '#e2e8f0'}
             />
-            <span className="absolute bottom-3 right-3 text-[10px] text-slate-300 flex items-center gap-1 pointer-events-none">
-              <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>sync</span>
+            <span style={{
+              position: 'absolute', bottom: 10, right: 12,
+              fontSize: 11, color: '#cbd5e1',
+              display: 'flex', alignItems: 'center', gap: 3,
+              pointerEvents: 'none',
+            }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>sync</span>
               Auto-saving enabled
             </span>
           </div>
         </div>
 
         {/* ── Tags ── */}
-        <div className="px-6 pb-4 flex items-center gap-2">
-          {NOTE_TAGS.map(tag => (
-            <button key={tag} type="button" onClick={() => insertTag(tag)}
-              className="text-xs font-medium text-slate-500 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 rounded-full px-3 py-1.5 transition-colors">
-              + {tag}
+        <div style={{ padding: '0 24px 20px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {TAGS.map(t => (
+            <button key={t} onClick={() => tag(t)} style={{
+              fontSize: 12, fontWeight: 500,
+              color: '#475569', background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: 99, padding: '5px 14px',
+              cursor: 'pointer', transition: 'border-color 0.15s',
+            }}
+              onMouseEnter={e => { e.target.style.borderColor = '#a5b4fc'; e.target.style.color = '#4f46e5'; }}
+              onMouseLeave={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.color = '#475569'; }}
+            >
+              + {t}
             </button>
           ))}
         </div>
 
         {/* ── Footer ── */}
-        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-          <button type="button"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 border border-slate-200 hover:border-slate-300 rounded-xl px-4 py-2 transition-colors">
-            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>history</span>
+        <div style={{
+          padding: '16px 24px',
+          borderTop: '1px solid #f1f5f9',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <button style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 13, fontWeight: 500, color: '#475569',
+            background: '#fff', border: '1.5px solid #e2e8f0',
+            borderRadius: 10, padding: '8px 16px', cursor: 'pointer',
+          }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>history</span>
             View History
           </button>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={onClose}
-              className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl transition-colors">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={onClose} style={{
+              fontSize: 13, fontWeight: 500, color: '#64748b',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '8px 12px',
+            }}>
               Cancel
             </button>
-            <button onClick={save} disabled={saving || !draft.trim()}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-[#00236f] hover:bg-[#001a52] rounded-xl px-5 py-2 disabled:opacity-40 transition-colors font-sora">
-              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>save</span>
+            <button onClick={save} disabled={saving || !draft.trim()} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontFamily: 'Sora, sans-serif', fontSize: 13, fontWeight: 600,
+              color: '#fff', background: saving || !draft.trim() ? '#94a3b8' : '#00236f',
+              border: 'none', borderRadius: 10, padding: '9px 20px', cursor: saving || !draft.trim() ? 'not-allowed' : 'pointer',
+              transition: 'background 0.15s',
+            }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>save</span>
               {saving ? 'Saving…' : 'Save note'}
             </button>
           </div>
         </div>
+
       </div>
-    </div>,
-    document.body
+    </div>
   );
+
+  return createPortal(modal, document.body);
 }
 
+/* ─── StudentCard ─── */
 function StudentCard({ student, sameNameCount, onClick }) {
-  const initials = getInitials(student.display_name);
-  const gradient = avatarGradient(student.display_name);
-  const disambiguator = sameNameCount > 1 && student.domains?.[0]?.name
-    ? student.domains[0].name
-    : null;
-  const status = studentStatus(student);
+  const ini = initials(student.display_name);
+  const grad = gradient(student.display_name);
+  const st = statusOf(student);
+  const disamb = sameNameCount > 1 && student.domains?.[0]?.name ? student.domains[0].name : null;
 
   return (
-    <div
-      onClick={onClick}
+    <div onClick={onClick}
       className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col gap-3 cursor-pointer group">
-
-      {/* Avatar + name + status */}
       <div className="flex items-start gap-3">
-        <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
-          <span className="text-slate-700 text-lg font-bold font-sora">{initials}</span>
+        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center shrink-0`}>
+          <span style={{ fontFamily: 'Sora,sans-serif', fontWeight: 700, fontSize: 15, color: '#334155' }}>{ini}</span>
         </div>
-        <div className="flex-1 min-w-0 pt-1">
-          <p className="text-base font-semibold text-slate-900 group-hover:text-indigo-700 leading-tight transition-colors font-sora">
+        <div className="flex-1 min-w-0 pt-0.5">
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-indigo-700 leading-tight transition-colors" style={{ fontFamily: 'Sora,sans-serif' }}>
             {student.display_name}
           </p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {student.session_grade && (
-              <span className="text-xs text-slate-400">{student.session_grade}</span>
-            )}
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${status.cls}`}>{status.label}</span>
+            {student.session_grade && <span className="text-xs text-slate-400">{student.session_grade}</span>}
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: st.bg, color: st.color }}>
+              {st.label}
+            </span>
           </div>
-          {disambiguator && (
-            <p className="text-xs text-slate-400 mt-0.5">{disambiguator}</p>
-          )}
+          {disamb && <p className="text-xs text-slate-400 mt-0.5">{disamb}</p>}
         </div>
       </div>
-
-      {/* Headline */}
       <div className="flex-1">
-        {student.headline ? (
-          <p className="text-sm text-slate-500 italic leading-snug">"{student.headline}"</p>
-        ) : (
-          <p className="text-xs text-slate-300 italic">Assessment not completed</p>
-        )}
+        {student.headline
+          ? <p className="text-sm text-slate-500 italic leading-snug">"{student.headline}"</p>
+          : <p className="text-xs text-slate-300 italic">Assessment not completed</p>
+        }
       </div>
-
-      {/* Footer */}
       <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-        <div onClick={e => e.stopPropagation()}>
-          <ReportButton student={student} stopProp />
-        </div>
-        <span className="text-xs text-slate-300 group-hover:text-indigo-400 transition-colors">
-          View profile →
-        </span>
+        <div onClick={e => e.stopPropagation()}><ReportButton student={student} stopProp /></div>
+        <span className="text-xs text-slate-300 group-hover:text-indigo-400 transition-colors">View profile →</span>
       </div>
     </div>
   );
 }
 
+/* ─── CohortDetail page ─── */
 export default function CohortDetail() {
   const { id } = useParams();
   const [students, setStudents] = useState([]);
@@ -309,44 +348,35 @@ export default function CohortDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selected, setSelected] = useState(null);
 
   useEffect(() => {
     Promise.all([schoolApi.getStudents(id), schoolApi.getCohorts()])
       .then(([d, cd]) => {
         setStudents(d.students);
-        const cohort = cd.cohorts.find(c => String(c.id) === String(id));
-        setCohortName(cohort?.name || `Cohort ${id}`);
+        const c = cd.cohorts.find(c => String(c.id) === String(id));
+        setCohortName(c?.name || `Cohort ${id}`);
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
 
-  const nameCount = students.reduce((acc, s) => {
-    acc[s.display_name] = (acc[s.display_name] || 0) + 1;
-    return acc;
-  }, {});
-
-  const filtered = students.filter(s =>
-    !search || (s.display_name || '').toLowerCase().includes(search.toLowerCase())
-  );
-
+  const nameCount = students.reduce((a, s) => { a[s.display_name] = (a[s.display_name] || 0) + 1; return a; }, {});
+  const filtered = students.filter(s => !search || (s.display_name || '').toLowerCase().includes(search.toLowerCase()));
   const reportCount = students.filter(s => s.report_status === 'done').length;
   const assessedCount = students.filter(s => s.headline).length;
   const pct = students.length > 0 ? Math.round((reportCount / students.length) * 100) : 0;
 
   return (
     <div className="p-6 max-w-6xl mx-auto min-h-full bg-slate-50">
-      {/* Page header */}
       <div className="mb-6">
         <Link to="/school" className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-indigo-600 transition-colors font-medium mb-3">
-          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
           All cohorts
         </Link>
-
         <div className="flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 font-sora">
+            <h1 style={{ fontFamily: 'Sora,sans-serif', fontWeight: 700, fontSize: 24, color: '#0f172a', margin: 0 }}>
               {loading ? '—' : cohortName}
             </h1>
             {!loading && students.length > 0 && (
@@ -358,45 +388,34 @@ export default function CohortDetail() {
           {!loading && students.length > 0 && (
             <div className="flex items-center gap-2 mb-1">
               <div className="w-28 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${pct}%` }} />
               </div>
-              <span className="text-sm font-semibold text-indigo-600 font-sora">{pct}%</span>
+              <span style={{ fontFamily: 'Sora,sans-serif', fontSize: 14, fontWeight: 600, color: '#4338ca' }}>{pct}%</span>
             </div>
           )}
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 mb-4">{error}</div>
-      )}
+      {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 mb-4">{error}</div>}
 
-      {/* Search */}
       {students.length > 6 && (
         <div className="relative mb-5">
-          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" style={{ fontSize: '18px' }}>search</span>
+          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" style={{ fontSize: 18 }}>search</span>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by name…"
             className="w-full bg-white border border-slate-100 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm placeholder-slate-300" />
         </div>
       )}
 
-      {/* Student grid */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5 animate-pulse h-44" />
-          ))}
+          {Array.from({ length: 6 }).map((_, i) => <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5 animate-pulse h-44" />)}
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(s => (
-              <StudentCard
-                key={s.id}
-                student={s}
-                sameNameCount={nameCount[s.display_name] || 1}
-                onClick={() => setSelectedStudent(s)}
-              />
+              <StudentCard key={s.id} student={s} sameNameCount={nameCount[s.display_name] || 1} onClick={() => setSelected(s)} />
             ))}
           </div>
           {filtered.length === 0 && (
@@ -407,13 +426,7 @@ export default function CohortDetail() {
         </>
       )}
 
-      {/* Student modal */}
-      {selectedStudent && (
-        <StudentModal
-          student={selectedStudent}
-          onClose={() => setSelectedStudent(null)}
-        />
-      )}
+      {selected && <StudentModal student={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }
