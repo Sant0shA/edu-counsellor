@@ -35,7 +35,7 @@ function TopHeader({ schoolName }) {
   const initial = (auth.name || 'C').charAt(0).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between shrink-0 font-sora">
+    <header className="z-10 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between shrink-0 font-sora">
       {/* Search */}
       <div className="relative hidden sm:block w-72">
         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" style={{ fontSize: '16px' }}>search</span>
@@ -99,10 +99,10 @@ function Layout({ children }) {
       <div className="hidden md:flex w-64 shrink-0 border-r border-slate-200 flex-col">
         <Sidebar schoolName={school?.name} />
       </div>
-      {/* Main column — fills remaining width, scrolls independently */}
-      <div className="flex-1 flex flex-col overflow-y-auto min-w-0">
+      {/* Main column — no overflow here so fixed portals stay viewport-relative */}
+      <div className="flex-1 flex flex-col min-w-0">
         <TopHeader schoolName={school?.name} />
-        <main className="flex-1 pb-16 md:pb-0">
+        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
           {children}
         </main>
         <MobileNav />
