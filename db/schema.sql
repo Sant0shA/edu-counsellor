@@ -73,3 +73,65 @@ CREATE INDEX IF NOT EXISTS idx_sessions_created_at       ON sessions(created_at)
 CREATE INDEX IF NOT EXISTS idx_report_queue_email_status ON report_queue(LOWER(email), status);
 CREATE INDEX IF NOT EXISTS idx_otp_codes_email           ON otp_codes(email, used, expires_at);
 CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_user   ON coupon_redemptions(user_id);
+
+-- ── School portal tables ──────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS schools (
+  id            SERIAL PRIMARY KEY,
+  name          TEXT NOT NULL,
+  slug          TEXT NOT NULL UNIQUE,
+  contact_email TEXT,
+  city          TEXT,
+  active        BOOLEAN NOT NULL DEFAULT true,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS school_cohorts (
+  id            SERIAL PRIMARY KEY,
+  school_id     INTEGER NOT NULL REFERENCES schools(id),
+  name          TEXT NOT NULL,
+  access_token  TEXT NOT NULL UNIQUE,
+  coupon_code   TEXT REFERENCES coupons(code),
+  bypass_otp    BOOLEAN NOT NULL DEFAULT false,
+  active        BOOLEAN NOT NULL DEFAULT true,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS school_staff (
+  id            SERIAL PRIMARY KEY,
+  school_id     INTEGER REFERENCES schools(id),
+  email         TEXT NOT NULL UNIQUE,
+  name          TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  role          TEXT NOT NULL,    -- 'admin' | 'manager' | 'counselor'
+  active        BOOLEAN NOT NULL DEFAULT true,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id         SERIAL PRIMARY KEY,
+  staff_id   INTEGER NOT NULL REFERENCES school_staff(id),
+  token      TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used       BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS counsellor_notes (
+  id         SERIAL PRIMARY KEY,
+  staff_id   INTEGER NOT NULL REFERENCES school_staff(id),
+  user_id    TEXT NOT NULL,
+  note       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Columns added to users and sessions for school cohort tagging:
+-- ALTER TABLE users    ADD COLUMN IF NOT EXISTS cohort_id    INTEGER REFERENCES school_cohorts(id);
+-- ALTER TABLE users    ADD COLUMN IF NOT EXISTS display_name TEXT;
+-- ALTER TABLE sessions ADD COLUMN IF NOT EXISTS cohort_id    INTEGER REFERENCES school_cohorts(id);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_cohort_id    ON sessions(cohort_id);
+CREATE INDEX IF NOT EXISTS idx_users_cohort_id       ON users(cohort_id);
+CREATE INDEX IF NOT EXISTS idx_school_staff_email    ON school_staff(email);
+CREATE INDEX IF NOT EXISTS idx_counsellor_notes_user ON counsellor_notes(user_id);

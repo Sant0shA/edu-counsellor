@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import pg from 'pg';
 import { Resend } from 'resend';
 import Razorpay from 'razorpay';
+import bcrypt from 'bcryptjs';
 
 const { Pool } = pg;
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -111,6 +112,58 @@ function requireAuth(req, res, next) {
   } catch {
     res.status(401).json({ error: 'Unauthorized' });
   }
+}
+
+// ── Staff Auth ────────────────────────────────────────────────────────────────
+const STAFF_TOKEN_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+
+function issueStaffToken(staffId, email, role, schoolId) {
+  const payload = `staff|${staffId}|${email}|${role}|${schoolId ?? 'null'}|${Date.now() + STAFF_TOKEN_TTL_MS}`;
+  const encoded = Buffer.from(payload).toString('base64url');
+  const sig = crypto.createHmac('sha256', AUTH_TOKEN_SECRET).update(encoded).digest('hex');
+  return `${encoded}.${sig}`;
+}
+
+function verifyStaffToken(token) {
+  if (!token || typeof token !== 'string') throw new Error('Missing token');
+  const dot = token.lastIndexOf('.');
+  if (dot < 0) throw new Error('Malformed token');
+  const encoded = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  if (!/^[0-9a-f]{64}$/.test(sig)) throw new Error('Invalid signature');
+  const expected = crypto.createHmac('sha256', AUTH_TOKEN_SECRET).update(encoded).digest('hex');
+  const sigBuf = Buffer.from(sig, 'hex');
+  const expBuf = Buffer.from(expected, 'hex');
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    throw new Error('Invalid signature');
+  }
+  const payload = Buffer.from(encoded, 'base64url').toString('utf8');
+  const parts = payload.split('|');
+  if (parts.length !== 6) throw new Error('Malformed payload');
+  if (parts[0] !== 'staff') throw new Error('Not a staff token');
+  const [, staffId, email, role, schoolIdStr, expiresAt] = parts;
+  if (Number(expiresAt) < Date.now()) throw new Error('Expired');
+  return { staffId: parseInt(staffId), email, role, schoolId: schoolIdStr === 'null' ? null : parseInt(schoolIdStr) };
+}
+
+function requireStaffAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  try {
+    req.staff = verifyStaffToken(token);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+}
+
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.staff || !roles.includes(req.staff.role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+  };
 }
 
 // ── In-memory rate-limit state ────────────────────────────────────────────────
@@ -1121,6 +1174,478 @@ async function runNudgeCheck() {
     }
   }
 }
+
+// ── Staff login ───────────────────────────────────────────────────────────────
+const staffLoginLog = new Map(); // email → { count, windowStart }
+
+app.post('/api/staff/auth/login', async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  const ip = req.ip;
+  if (!checkRate(staffLoginLog, ip, 15 * 60 * 1000, 10)) {
+    return res.status(429).json({ error: 'Too many login attempts' });
+  }
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, email, name, password_hash, role, school_id, active FROM school_staff WHERE email = $1',
+      [email.toLowerCase().trim()]
+    );
+    const staff = rows[0];
+    if (!staff || !staff.active) return res.status(401).json({ error: 'Invalid credentials' });
+    const valid = await bcrypt.compare(password, staff.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    const token = issueStaffToken(staff.id, staff.email, staff.role, staff.school_id);
+    res.json({ token, role: staff.role, name: staff.name, schoolId: staff.school_id });
+  } catch (err) {
+    console.error('[staff/login]', err.message);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.post('/api/staff/auth/reset-password/request', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  if (!pool || !resend) return res.status(503).json({ error: 'Service unavailable' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, name, role FROM school_staff WHERE email = $1 AND active = true',
+      [email.toLowerCase().trim()]
+    );
+    // Always return 200 to avoid email enumeration
+    if (!rows[0]) return res.json({ ok: true });
+    const staff = rows[0];
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO password_reset_tokens (staff_id, token, expires_at)
+       VALUES ($1, $2, now() + INTERVAL '24 hours')`,
+      [staff.id, token]
+    );
+    const path = ['admin', 'manager'].includes(staff.role) ? 'admin' : 'school';
+    const link = `${process.env.APP_URL || 'https://app.careershifu.com'}/${path}/set-password?token=${token}`;
+    await resend.emails.send({
+      from: 'CareerShifu <contact@careershifu.com>',
+      to: email,
+      subject: 'Reset your CareerShifu password',
+      html: `<p>Hi ${escHtml(staff.name)},</p><p><a href="${link}">Reset your password</a> (expires in 24 hours).</p><p>If you didn't request this, ignore this email.</p>`,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[staff/reset-request]', err.message);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+app.post('/api/staff/auth/reset-password/confirm', async (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token || !password || password.length < 8) {
+    return res.status(400).json({ error: 'Token and password (min 8 chars) required' });
+  }
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, staff_id FROM password_reset_tokens
+       WHERE token = $1 AND used = false AND expires_at > now()`,
+      [token]
+    );
+    if (!rows[0]) return res.status(400).json({ error: 'Invalid or expired token' });
+    const hash = await bcrypt.hash(password, 10);
+    await pool.query('UPDATE school_staff SET password_hash = $1 WHERE id = $2', [hash, rows[0].staff_id]);
+    await pool.query('UPDATE password_reset_tokens SET used = true WHERE id = $1', [rows[0].id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[staff/reset-confirm]', err.message);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// ── Admin: schools ────────────────────────────────────────────────────────────
+app.get('/api/admin/schools', requireStaffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT s.id, s.name, s.slug, s.city, s.contact_email, s.active, s.created_at,
+              COUNT(DISTINCT sc.id) AS cohort_count,
+              COUNT(DISTINCT u.id) AS student_count
+       FROM schools s
+       LEFT JOIN school_cohorts sc ON sc.school_id = s.id
+       LEFT JOIN users u ON u.cohort_id = sc.id
+       GROUP BY s.id ORDER BY s.created_at DESC`
+    );
+    res.json({ schools: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/schools', requireStaffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const { name, slug, contact_email, city } = req.body || {};
+  if (!name || !slug) return res.status(400).json({ error: 'name and slug required' });
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO schools (name, slug, contact_email, city)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [name, slug.toLowerCase(), contact_email || null, city || null]
+    );
+    res.json({ school: rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Slug already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/schools/:id', requireStaffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query('SELECT * FROM schools WHERE id = $1', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json({ school: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/schools/:id', requireStaffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const { name, contact_email, city, active } = req.body || {};
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE schools SET name = COALESCE($1, name), contact_email = COALESCE($2, contact_email),
+       city = COALESCE($3, city), active = COALESCE($4, active) WHERE id = $5 RETURNING *`,
+      [name || null, contact_email || null, city || null, active ?? null, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json({ school: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/schools/:id/cohorts', requireStaffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT sc.*, COUNT(u.id) AS student_count
+       FROM school_cohorts sc
+       LEFT JOIN users u ON u.cohort_id = sc.id
+       WHERE sc.school_id = $1
+       GROUP BY sc.id ORDER BY sc.created_at DESC`,
+      [req.params.id]
+    );
+    res.json({ cohorts: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/schools/:id/cohorts', requireStaffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const { name, bypass_otp, bulk_credits, discount_pct } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name required' });
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const accessToken = crypto.randomBytes(16).toString('hex');
+    let couponCode = null;
+    if (bulk_credits > 0 || discount_pct > 0) {
+      couponCode = `SCHOOL-${accessToken.slice(0, 8).toUpperCase()}`;
+      const type = bulk_credits > 0 ? 'free' : 'percent';
+      const discountValue = bulk_credits > 0 ? 100 : discount_pct;
+      const maxUses = bulk_credits > 0 ? bulk_credits : 9999;
+      await pool.query(
+        `INSERT INTO coupons (code, type, discount_value, max_uses) VALUES ($1, $2, $3, $4)`,
+        [couponCode, type, discountValue, maxUses]
+      );
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO school_cohorts (school_id, name, access_token, coupon_code, bypass_otp)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [req.params.id, name, accessToken, couponCode, bypass_otp ?? false]
+    );
+    res.json({ cohort: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/cohorts/:id', requireStaffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const { name, bypass_otp, active } = req.body || {};
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE school_cohorts SET name = COALESCE($1, name), bypass_otp = COALESCE($2, bypass_otp),
+       active = COALESCE($3, active) WHERE id = $4 RETURNING *`,
+      [name || null, bypass_otp ?? null, active ?? null, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json({ cohort: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: staff ──────────────────────────────────────────────────────────────
+app.get('/api/admin/staff', requireStaffAuth, requireRole('admin'), async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT ss.id, ss.email, ss.name, ss.role, ss.active, ss.created_at, s.name AS school_name
+       FROM school_staff ss
+       LEFT JOIN schools s ON s.id = ss.school_id
+       ORDER BY ss.created_at DESC`
+    );
+    res.json({ staff: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/staff', requireStaffAuth, requireRole('admin'), async (req, res) => {
+  const { email, name, role, school_id } = req.body || {};
+  if (!email || !name || !role) return res.status(400).json({ error: 'email, name, role required' });
+  if (!['admin', 'manager', 'counselor'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const tempHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+    const { rows } = await pool.query(
+      `INSERT INTO school_staff (email, name, password_hash, role, school_id)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, role, school_id`,
+      [email.toLowerCase().trim(), name, tempHash, role, school_id || null]
+    );
+    const staff = rows[0];
+    if (resend) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      await pool.query(
+        `INSERT INTO password_reset_tokens (staff_id, token, expires_at)
+         VALUES ($1, $2, now() + INTERVAL '7 days')`,
+        [staff.id, resetToken]
+      );
+      const path = ['admin', 'manager'].includes(role) ? 'admin' : 'school';
+      const link = `${process.env.APP_URL || 'https://app.careershifu.com'}/${path}/set-password?token=${resetToken}`;
+      await resend.emails.send({
+        from: 'CareerShifu <contact@careershifu.com>',
+        to: email,
+        subject: 'Set your CareerShifu password',
+        html: `<p>Hi ${escHtml(name)},</p><p>Your CareerShifu staff account has been created. <a href="${link}">Set your password here</a> (link expires in 7 days).</p>`,
+      });
+    }
+    res.json({ staff });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Email already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/staff/:id', requireStaffAuth, requireRole('admin'), async (req, res) => {
+  const { name, role, active, school_id } = req.body || {};
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE school_staff SET name = COALESCE($1, name), role = COALESCE($2, role),
+       active = COALESCE($3, active), school_id = COALESCE($4, school_id)
+       WHERE id = $5 RETURNING id, email, name, role, active, school_id`,
+      [name || null, role || null, active ?? null, school_id || null, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json({ staff: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Counselor routes ──────────────────────────────────────────────────────────
+app.get('/api/counselor/school', requireStaffAuth, requireRole('counselor'), async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query('SELECT * FROM schools WHERE id = $1', [req.staff.schoolId]);
+    if (!rows[0]) return res.status(404).json({ error: 'School not found' });
+    res.json({ school: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/counselor/cohorts', requireStaffAuth, requireRole('counselor'), async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT sc.id, sc.name, sc.access_token, sc.bypass_otp, sc.active, sc.created_at,
+              COUNT(DISTINCT u.id) AS student_count,
+              COUNT(DISTINCT rq.id) FILTER (WHERE rq.status = 'done') AS report_count
+       FROM school_cohorts sc
+       LEFT JOIN users u ON u.cohort_id = sc.id
+       LEFT JOIN report_queue rq ON rq.user_id = u.id::TEXT
+       WHERE sc.school_id = $1
+       GROUP BY sc.id ORDER BY sc.created_at DESC`,
+      [req.staff.schoolId]
+    );
+    res.json({ cohorts: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/counselor/cohorts', requireStaffAuth, requireRole('counselor'), async (req, res) => {
+  const { name, bypass_otp } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name required' });
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const accessToken = crypto.randomBytes(16).toString('hex');
+    const { rows } = await pool.query(
+      `INSERT INTO school_cohorts (school_id, name, access_token, bypass_otp)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.staff.schoolId, name, accessToken, bypass_otp ?? false]
+    );
+    res.json({ cohort: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/counselor/cohorts/:id/students', requireStaffAuth, requireRole('counselor'), async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, COALESCE(u.display_name, u.email) AS display_name, u.email, u.grade,
+              s.result->>'headline' AS headline,
+              s.result->'domains' AS domains,
+              s.grade AS session_grade,
+              rq.status AS report_status,
+              rq.id AS report_queue_id
+       FROM users u
+       JOIN school_cohorts sc ON sc.id = u.cohort_id AND sc.school_id = $1
+       LEFT JOIN sessions s ON s.user_id = u.id::TEXT
+       LEFT JOIN report_queue rq ON rq.user_id = u.id::TEXT
+       WHERE u.cohort_id = $2
+       ORDER BY u.display_name`,
+      [req.staff.schoolId, req.params.id]
+    );
+    res.json({ students: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Counsellor notes ──────────────────────────────────────────────────────────
+app.get('/api/counselor/students/:userId/notes', requireStaffAuth, requireRole('counselor'), async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    // Verify student belongs to this school
+    const { rows: check } = await pool.query(
+      `SELECT u.id FROM users u JOIN school_cohorts sc ON sc.id = u.cohort_id
+       WHERE u.id::TEXT = $1 AND sc.school_id = $2`,
+      [req.params.userId, req.staff.schoolId]
+    );
+    if (!check[0]) return res.status(404).json({ error: 'Student not found' });
+    const { rows } = await pool.query(
+      `SELECT cn.id, cn.note, cn.created_at, cn.updated_at, ss.name AS author
+       FROM counsellor_notes cn
+       JOIN school_staff ss ON ss.id = cn.staff_id
+       WHERE cn.user_id = $1 ORDER BY cn.created_at DESC`,
+      [req.params.userId]
+    );
+    res.json({ notes: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/counselor/students/:userId/notes', requireStaffAuth, requireRole('counselor'), async (req, res) => {
+  const { note } = req.body || {};
+  if (!note || !note.trim()) return res.status(400).json({ error: 'note required' });
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows: check } = await pool.query(
+      `SELECT u.id FROM users u JOIN school_cohorts sc ON sc.id = u.cohort_id
+       WHERE u.id::TEXT = $1 AND sc.school_id = $2`,
+      [req.params.userId, req.staff.schoolId]
+    );
+    if (!check[0]) return res.status(404).json({ error: 'Student not found' });
+    const { rows } = await pool.query(
+      `INSERT INTO counsellor_notes (staff_id, user_id, note) VALUES ($1, $2, $3) RETURNING *`,
+      [req.staff.staffId, req.params.userId, note.trim()]
+    );
+    res.json({ note: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/counselor/notes/:id', requireStaffAuth, requireRole('counselor'), async (req, res) => {
+  const { note } = req.body || {};
+  if (!note || !note.trim()) return res.status(400).json({ error: 'note required' });
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE counsellor_notes SET note = $1, updated_at = now()
+       WHERE id = $2 AND staff_id = $3 RETURNING *`,
+      [note.trim(), req.params.id, req.staff.staffId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Note not found' });
+    res.json({ note: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Public cohort routes ──────────────────────────────────────────────────────
+app.get('/api/cohort/:token', async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT sc.id, sc.name, sc.bypass_otp, s.name AS school_name
+       FROM school_cohorts sc JOIN schools s ON s.id = sc.school_id
+       WHERE sc.access_token = $1 AND sc.active = true AND s.active = true`,
+      [req.params.token]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Invalid cohort link' });
+    res.json({ cohort: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cohort/:token/join', async (req, res) => {
+  const { name } = req.body || {};
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows: cohortRows } = await pool.query(
+      `SELECT sc.id, sc.bypass_otp FROM school_cohorts sc
+       JOIN schools s ON s.id = sc.school_id
+       WHERE sc.access_token = $1 AND sc.active = true AND s.active = true`,
+      [req.params.token]
+    );
+    if (!cohortRows[0]) return res.status(404).json({ error: 'Invalid cohort link' });
+    const cohort = cohortRows[0];
+    if (!cohort.bypass_otp) return res.status(400).json({ error: 'This cohort requires OTP sign-in' });
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
+    const placeholderEmail = `cohort-${crypto.randomUUID()}@internal.careershifu.com`;
+    const { rows } = await pool.query(
+      `INSERT INTO users (email, display_name, cohort_id) VALUES ($1, $2, $3) RETURNING id, email`,
+      [placeholderEmail, name.trim(), cohort.id]
+    );
+    const user = rows[0];
+    const token = issueAuthToken(user.id, user.email);
+    res.json({ token, userId: user.id, displayName: name.trim() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── School discount ───────────────────────────────────────────────────────────
+app.get('/api/user/school-discount', requireAuth, async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT sc.coupon_code FROM users u
+       JOIN school_cohorts sc ON sc.id = u.cohort_id
+       WHERE u.id::TEXT = $1 AND sc.coupon_code IS NOT NULL`,
+      [req.auth.userId]
+    );
+    res.json({ couponCode: rows[0]?.coupon_code ?? null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
