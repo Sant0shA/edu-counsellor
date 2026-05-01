@@ -205,7 +205,7 @@ export default function CohortDetail() {
   const pct = students.length > 0 ? Math.round((reportCount / students.length) * 100) : 0;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto min-h-full bg-slate-50">
       {/* Page header */}
       <div className="mb-6">
         <Link to="/school" className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-indigo-600 transition-colors font-medium mb-3">

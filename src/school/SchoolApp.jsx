@@ -84,9 +84,10 @@ function Layout({ children }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-body">
+    /* fixed inset-0 escapes #root's display:flex / justify-content:center from the student app */
+    <div className="fixed inset-0 overflow-y-auto bg-slate-100 font-body" style={{ zIndex: 0 }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col md:ml-64 min-h-screen">
+      <div className="md:ml-64 flex flex-col min-h-full">
         <TopHeader schoolName={school?.name} />
         <main className="flex-1 pb-20 md:pb-0">
           {children}

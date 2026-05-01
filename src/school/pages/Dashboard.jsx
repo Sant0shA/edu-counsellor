@@ -121,7 +121,7 @@ export default function SchoolDashboard() {
   const pct = totalStudents > 0 ? Math.round((totalReports / totalStudents) * 100) : 0;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto min-h-full bg-slate-50">
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       {/* Stat cards */}
