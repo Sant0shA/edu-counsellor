@@ -36,6 +36,7 @@ export const schoolApi = {
   createCohort: (body) => apiFetch('/api/counselor/cohorts', { method: 'POST', body: JSON.stringify(body) }),
   getStudents: (cohortId) => apiFetch(`/api/counselor/cohorts/${cohortId}/students`),
 
+  getReportUrl: (queueId) => apiFetch(`/api/counselor/reports/${queueId}/url`),
   getNotes: (userId) => apiFetch(`/api/counselor/students/${userId}/notes`),
   addNote: (userId, note) =>
     apiFetch(`/api/counselor/students/${userId}/notes`, { method: 'POST', body: JSON.stringify({ note }) }),

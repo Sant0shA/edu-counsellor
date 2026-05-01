@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CareerMap — Results screen preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FFF8F5;
+    --accent: #E8541A;
+    --accent-light: #FFF0EB;
+    --accent-border: #F4C4AE;
+    --text: #1A1A1A;
+    --text-muted: #666666;
+    --text-faint: #999999;
+    --border: #E8E0DA;
+    --white: #FFFFFF;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --report-purple: #3C3489;
+    --report-purple-light: #EEEDFE;
+    --report-purple-text: #26215C;
+    --report-green-bg: #E1F5EE;
+    --report-green-border: #9FE1CB;
+    --report-green-text: #085041;
+    --report-testimonial-border: #7F77DD;
+    --report-amber-bg: #FAEEDA;
+    --report-amber-text: #633806;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .screen {
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+  }
+  /* Grade badge */
+  .grade-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    border-radius: 100px;
+    padding: 5px 12px;
+    margin-bottom: 16px;
+  }
+  /* Headline */
+  .headline-card {
+    background: var(--accent);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+  .headline-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 8px;
+  }
+  .headline-text {
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+  }
+  /* Observation */
+  .observation-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .observation-text { font-size: 16px; line-height: 1.7; color: var(--text); }
+  /* Question */
+  .question-card-result {
+    background: var(--accent-light);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .question-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .question-result-text {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.6;
+    color: var(--text);
+    font-style: italic;
+  }
+  /* Domains */
+  .domains-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+  }
+  .domains-sub {
+    font-size: 13px;
+    color: var(--text-faint);
+    line-height: 1.55;
+    margin-bottom: 16px;
+  }
+  .domain-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+  .domain-num {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+  }
+  .domain-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 10px;
+    line-height: 1.3;
+  }
+  .domain-connection {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  .domain-paths-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+  }
+  .domain-paths {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .domain-path {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 11px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+  }
+  .explore-box {
+    background: var(--accent-light);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+  }
+  .explore-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .explore-text { font-size: 13px; line-height: 1.6; color: var(--text); }
+  .paths-lock-note {
+    display: block;
+    margin-top: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--report-purple);
+    text-decoration: none;
+  }
+  /* Report card */
+  .report-card {
+    background: var(--white);
+    border: 1.5px solid var(--report-purple-light);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    margin-bottom: 16px;
+  }
+  .report-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--report-purple);
+    margin-bottom: 8px;
+  }
+  .report-headline {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--report-purple-text);
+    line-height: 1.3;
+    margin-bottom: 8px;
+  }
+  .report-sub {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+  .report-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .report-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .feat-check { color: #1D9E75; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .counsellor-callout {
+    display: flex;
+    gap: 12px;
+    background: var(--report-green-bg);
+    border: 1px solid var(--report-green-border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    margin-bottom: 20px;
+    color: var(--report-green-text);
+  }
+  .callout-icon { font-size: 20px; flex-shrink: 0; }
+  .counsellor-callout strong { display: block; font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .counsellor-callout p { font-size: 13px; line-height: 1.4; margin: 0; }
+  .price-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  .price-amount { font-size: 28px; font-weight: 800; color: var(--report-purple-text); }
+  .price-note { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+  .coupon-link {
+    background: none; border: none; cursor: pointer;
+    font-size: 13px; color: var(--text-muted); text-decoration: underline;
+    padding: 0; margin-bottom: 12px; display: block;
+  }
+  .btn-report {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    background: var(--report-purple);
+    color: #fff;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .payment-note { font-size: 12px; color: var(--text-faint); text-align: center; margin-bottom: 12px; }
+  .urgency-note {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--report-amber-text);
+    background: var(--report-amber-bg);
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+  }
+  .testimonials { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+  .testimonial-card {
+    border-left: 3px solid var(--report-testimonial-border);
+    padding: 12px 14px;
+    background: var(--report-purple-light);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+  .testimonial-text { font-size: 14px; color: var(--report-purple-text); line-height: 1.6; }
+  .report-disclaimer { font-size: 12px; color: var(--text-faint); margin-top: 8px; }
+  .btn-whatsapp {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: #25D366;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    text-decoration: none;
+    margin-bottom: 20px;
+  }
+  .results-disclaimer {
+    font-size: 12px;
+    color: var(--text-faint);
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  .results-footer { font-size: 12px; color: var(--text-faint); text-align: center; }
+  /* nav bar hint */
+  .screen-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    padding: 12px 0 4px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+  <p class="screen-label">CareerMap · Results screen (mobile preview)</p>
+
+  <!-- Grade badge -->
+  <span class="grade-badge">Decision Window · Class 11</span>
+
+  <!-- Headline -->
+  <div class="headline-card">
+    <p class="headline-label">Your Virtual Edu Guide sees</p>
+    <h1 class="headline-text">The Connector and Builder</h1>
+  </div>
+
+  <!-- Observation -->
+  <div class="observation-card">
+    <p class="observation-text">Something stood out — you said you lose track of time when you are building things and figuring out how they work together. That combination of making and understanding shows up consistently across your answers. You are drawn to problems that involve real people, not just abstract puzzles.</p>
+  </div>
+
+  <!-- Question -->
+  <div class="question-card-result">
+    <p class="question-label">Something to sit with</p>
+    <p class="question-result-text">"When you imagine yourself ten years from now, are you in a room with people, or alone with a problem — and which one feels more like home?"</p>
+  </div>
+
+  <!-- Domains -->
+  <div class="domains-section">
+    <p class="domains-title">Domains worth exploring</p>
+    <p class="domains-sub">These are starting points — not conclusions. Each domain contains many different paths. Use them to explore, not to decide.</p>
+
+    <!-- Domain 1 -->
+    <div class="domain-card">
+      <p class="domain-num">Domain 1</p>
+      <h3 class="domain-name">Building products people use every day</h3>
+      <p class="domain-connection">You mentioned losing track of time when building apps and tools. Product work sits exactly at that intersection of making and understanding people.</p>
+      <div class="domain-paths-label">Paths within this domain</div>
+      <div class="domain-paths">
+        <span class="domain-path">Product manager</span>
+        <span class="domain-path">UX designer</span>
+      </div>
+      <div class="explore-box">
+        <span class="explore-label">Try this</span>
+        <p class="explore-text">Download a free app you use daily and write down three things you would change about it.</p>
+      </div>
+      <a class="paths-lock-note" href="#">See all 5 paths in your CareerMap Report →</a>
+    </div>
+
+    <!-- Domain 2 -->
+    <div class="domain-card">
+      <p class="domain-num">Domain 2</p>
+      <h3 class="domain-name">Understanding how the mind shapes decisions</h3>
+      <p class="domain-connection">Your answers about what you find fascinating — especially how people react under pressure — point strongly toward behavioural and cognitive work.</p>
+      <div class="domain-paths-label">Paths within this domain</div>
+      <div class="domain-paths">
+        <span class="domain-path">Research psychologist</span>
+        <span class="domain-path">Behavioural consultant</span>
+      </div>
+      <div class="explore-box">
+        <span class="explore-label">Try this</span>
+        <p class="explore-text">Watch a TED talk by Daniel Kahneman on thinking fast and slow.</p>
+      </div>
+      <a class="paths-lock-note" href="#">See all 5 paths in your CareerMap Report →</a>
+    </div>
+
+    <!-- Domain 3 -->
+    <div class="domain-card">
+      <p class="domain-num">Domain 3</p>
+      <h3 class="domain-name">Writing stories that change how people think</h3>
+      <p class="domain-connection">You listed storytelling as something you do in your free time, and you admire people who can explain complex ideas simply. That is the core skill in journalism, documentary and content strategy.</p>
+      <div class="domain-paths-label">Paths within this domain</div>
+      <div class="domain-paths">
+        <span class="domain-path">Journalist</span>
+        <span class="domain-path">Documentary filmmaker</span>
+      </div>
+      <div class="explore-box">
+        <span class="explore-label">Try this</span>
+        <p class="explore-text">Read one long-form article on The Ken or Scroll and notice what makes the writing hold your attention.</p>
+      </div>
+      <a class="paths-lock-note" href="#">See all 5 paths in your CareerMap Report →</a>
+    </div>
+  </div>
+
+  <!-- Report card -->
+  <div class="report-card" id="report-card">
+    <p class="report-eyebrow">Your CareerMap Report</p>
+    <h2 class="report-headline">See what your answers actually say about you</h2>
+    <p class="report-sub">A personalised report built from your responses. Specific to your grade, your thinking style, your paths.</p>
+
+    <ul class="report-features">
+      <li><span class="feat-check">✓</span> Your thinking style and how you make decisions — explained in plain language</li>
+      <li><span class="feat-check">✓</span> All 5 career paths per domain — you've only seen 6 of 15 so far</li>
+      <li><span class="feat-check">✓</span> Stream and subject guidance for your grade and goals</li>
+      <li><span class="feat-check">✓</span> Your strengths and areas to develop — drawn from your own answers</li>
+      <li><span class="feat-check">✓</span> 6–8 personalised things to try over the next 3 months</li>
+      <li><span class="feat-check">✓</span> A parent summary — written for them, so you don't have to explain it yourself</li>
+      <li><span class="feat-check">✓</span> A free counsellor call within 48 hours — to help you understand your report</li>
+    </ul>
+
+    <div class="counsellor-callout">
+      <span class="callout-icon">📞</span>
+      <div>
+        <strong>Free counsellor call included</strong>
+        <p>A CareerMap counsellor will call within 48 hours to walk you through the report and answer questions.</p>
+      </div>
+    </div>
+
+    <div class="price-row">
+      <span class="price-amount">₹499</span>
+      <span class="price-note">One time. Counsellor call included.</span>
+    </div>
+
+    <button class="coupon-link" type="button">Have a coupon code?</button>
+
+    <button class="btn-report" type="button">Download my CareerMap report</button>
+    <p class="payment-note">Secure payment · PDF to your email instantly</p>
+    <p class="urgency-note">Your session expires in 48 hours</p>
+
+    <div class="testimonials">
+      <div class="testimonial-card">
+        <p class="testimonial-text">Always assumed you'd follow a familiar path because that's what everyone around you did? This report looks at <strong>how you actually think</strong> — not just your marks or what's expected.</p>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-text">The parent summary is written for your family — not for you. It gives them the language to understand where you're headed, and turns <strong>a difficult conversation into a real one.</strong></p>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-text">If you're a parent trying to figure out which subjects or stream to choose — this report gives you something specific to work with. Not generic advice. <strong>Your child's actual signals.</strong></p>
+      </div>
+    </div>
+
+    <p class="report-disclaimer">Stream and course guidance reflects CBSE/ISC 2025 pathways.</p>
+  </div>
+
+  <!-- WhatsApp share -->
+  <a class="btn-whatsapp" href="#">Share this — it's free to try →</a>
+
+  <p class="results-disclaimer">These results are based on your responses today and are meant to give you a broad starting point — not a final answer. Career paths are shaped by many factors that a short assessment can't fully capture.</p>
+  <p class="results-footer">CareerMap · Virtual Edu Guide · V1</p>
+</div>
+</body>
+</html>

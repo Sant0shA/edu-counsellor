@@ -246,6 +246,39 @@ def build_student_context(grade: str, answers: dict, result: dict, email: str) -
 
 # ── Email delivery via Resend ──────────────────────────────────────────────────
 
+def upload_to_r2(pdf_bytes: bytes, key: str) -> str | None:
+    """Upload PDF to Cloudflare R2. Returns the object key on success, None if unconfigured."""
+    account_id = os.environ.get('R2_ACCOUNT_ID')
+    access_key = os.environ.get('R2_ACCESS_KEY_ID')
+    secret_key = os.environ.get('R2_SECRET_ACCESS_KEY')
+    bucket     = os.environ.get('R2_BUCKET')
+    if not all([account_id, access_key, secret_key, bucket]):
+        print('[generate] R2 env vars missing — skipping upload', file=sys.stderr)
+        return None
+    import boto3
+    from botocore.config import Config
+    s3 = boto3.client(
+        's3',
+        endpoint_url=f'https://{account_id}.r2.cloudflarestorage.com',
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        config=Config(signature_version='s3v4'),
+        region_name='auto',
+    )
+    s3.put_object(Bucket=bucket, Key=key, Body=pdf_bytes, ContentType='application/pdf')
+    print(f'[generate] Uploaded to R2: {key}', file=sys.stderr)
+    return key
+
+
+def db_save_report_url(conn, queue_id: int, key: str):
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE report_queue SET report_url = %s WHERE id = %s",
+            (key, queue_id),
+        )
+    conn.commit()
+
+
 def send_report_email(email: str, pdf_bytes: bytes):
     api_key = os.environ.get('RESEND_API_KEY')
     if not api_key:
@@ -412,6 +445,11 @@ def main():
         print('[generate] Building PDF...', file=sys.stderr)
         pdf_bytes = build_pdf(ctx, content)
         print(f'[generate] PDF built ({len(pdf_bytes)} bytes)', file=sys.stderr)
+
+        # Upload to R2
+        r2_key = upload_to_r2(pdf_bytes, f'reports/{queue_id}.pdf')
+        if r2_key:
+            db_save_report_url(conn, queue_id, r2_key)
 
         # Email
         print(f'[generate] Sending to {queue_row["email"]}...', file=sys.stderr)

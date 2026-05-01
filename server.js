@@ -7,6 +7,8 @@ import pg from 'pg';
 import { Resend } from 'resend';
 import Razorpay from 'razorpay';
 import bcrypt from 'bcryptjs';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const { Pool } = pg;
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -228,6 +230,20 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
+const r2 = process.env.R2_ACCOUNT_ID ? new S3Client({
+  region: 'auto',
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+  },
+}) : null;
+
+async function getR2SignedUrl(key) {
+  if (!r2) return null;
+  return getSignedUrl(r2, new GetObjectCommand({ Bucket: process.env.R2_BUCKET, Key: key }), { expiresIn: 3600 });
+}
+
 const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
   ? new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET })
   : null;
@@ -413,6 +429,8 @@ async function initDb() {
       )
     `);
     console.log('[db] coupons + nudge_log ready');
+    await pool.query(`ALTER TABLE report_queue ADD COLUMN IF NOT EXISTS report_url TEXT`);
+    console.log('[db] report_queue.report_url column ready');
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_sessions_user_id           ON sessions(user_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_sessions_created_at        ON sessions(created_at)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_report_queue_email_status  ON report_queue(LOWER(email), status)`);
@@ -1582,6 +1600,44 @@ app.put('/api/counselor/notes/:id', requireStaffAuth, requireRole('counselor'), 
     );
     if (!rows[0]) return res.status(404).json({ error: 'Note not found' });
     res.json({ note: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Report signed URL — counselor ────────────────────────────────────────────
+app.get('/api/counselor/reports/:queueId/url', requireStaffAuth, requireRole('counselor'), async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT rq.report_url FROM report_queue rq
+       JOIN users u ON u.id::TEXT = rq.user_id
+       JOIN school_cohorts sc ON sc.id = u.cohort_id
+       WHERE rq.id = $1 AND sc.school_id = $2 AND rq.status = 'done'`,
+      [req.params.queueId, req.staff.schoolId]
+    );
+    if (!rows[0]?.report_url) return res.status(404).json({ error: 'Report not found' });
+    const url = await getR2SignedUrl(rows[0].report_url);
+    if (!url) return res.status(503).json({ error: 'Storage not configured' });
+    res.json({ url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Report signed URL — student (own report) ──────────────────────────────────
+app.get('/api/report/download', requireAuth, async (req, res) => {
+  if (!pool) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT report_url FROM report_queue WHERE user_id = $1 AND status = 'done' AND report_url IS NOT NULL
+       ORDER BY created_at DESC LIMIT 1`,
+      [req.auth.userId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'No report available' });
+    const url = await getR2SignedUrl(rows[0].report_url);
+    if (!url) return res.status(503).json({ error: 'Storage not configured' });
+    res.json({ url });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
