@@ -31,7 +31,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-slate-50 border-r border-slate-200 flex-col z-30">
+    <aside className="flex flex-col h-full w-full bg-slate-50">
       {/* Branding */}
       <div className="px-5 py-5 border-b border-slate-200">
         <div className="flex items-center gap-3">

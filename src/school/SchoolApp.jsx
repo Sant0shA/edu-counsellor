@@ -84,12 +84,16 @@ function Layout({ children }) {
   }, []);
 
   return (
-    /* fixed inset-0 escapes #root's display:flex / justify-content:center from the student app */
-    <div className="fixed inset-0 overflow-y-auto bg-slate-100 font-body" style={{ zIndex: 0 }}>
-      <Sidebar />
-      <div className="md:ml-64 flex flex-col min-h-full">
+    /* fixed inset-0 flex escapes #root's display:flex/justify-content:center from the student app */
+    <div className="fixed inset-0 flex font-body bg-slate-50" style={{ zIndex: 1 }}>
+      {/* Sidebar column — in flex flow, desktop only */}
+      <div className="hidden md:flex w-64 shrink-0 border-r border-slate-200 flex-col">
+        <Sidebar />
+      </div>
+      {/* Main column — fills remaining width, scrolls independently */}
+      <div className="flex-1 flex flex-col overflow-y-auto min-w-0">
         <TopHeader schoolName={school?.name} />
-        <main className="flex-1 pb-20 md:pb-0">
+        <main className="flex-1 pb-16 md:pb-0">
           {children}
         </main>
         <MobileNav />
