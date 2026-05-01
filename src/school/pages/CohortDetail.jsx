@@ -100,8 +100,7 @@ function StudentModal({ student, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)' }}
-      onClick={onClose}>
+      style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)' }}>
 
       <div
         className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
