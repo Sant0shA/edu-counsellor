@@ -74,16 +74,10 @@ function StudentModal({ student, onClose }) {
   const inputRef = useRef(null);
   const status = studentStatus(student);
 
-  const initials = getInitials(student.display_name);
-  const gradient = avatarGradient(student.display_name);
-
   useEffect(() => {
     loadNotes();
     setTimeout(() => inputRef.current?.focus(), 100);
-
-    function onKey(e) {
-      if (e.key === 'Escape') onClose();
-    }
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [student.id]);
@@ -111,120 +105,139 @@ function StudentModal({ student, onClose }) {
     inputRef.current?.focus();
   }
 
+  const lastNote = notes?.length > 0 ? notes[notes.length - 1] : null;
+  const lastEntryDate = lastNote
+    ? new Date(lastNote.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)' }}>
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6"
+      style={{ background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(6px)' }}>
 
       <div
-        className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col"
+        style={{ maxHeight: '90vh' }}
         onClick={e => e.stopPropagation()}>
 
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-slate-100">
-          <div className="flex items-start gap-4">
-            <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
-              <span className="text-slate-700 text-xl font-bold font-sora">{initials}</span>
+        {/* ── Header ── */}
+        <div className="px-6 pt-5 pb-4">
+          <div className="flex items-start gap-3">
+            {/* Icon avatar */}
+            <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-slate-400" style={{ fontSize: '24px' }}>person</span>
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-bold text-slate-900 leading-tight font-sora">{student.display_name}</h2>
-                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${status.cls}`}>{status.label}</span>
+                <h2 className="text-base font-bold text-slate-900 font-sora leading-tight">{student.display_name}</h2>
+                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${status.cls}`}>{status.label}</span>
               </div>
-              {student.session_grade && (
-                <p className="text-sm text-slate-400 mt-0.5">{student.session_grade}</p>
-              )}
               {student.headline ? (
-                <p className="text-sm text-slate-500 italic mt-2 leading-snug">"{student.headline}"</p>
+                <p className="text-xs text-slate-400 italic mt-1 leading-snug">"{student.headline}"</p>
               ) : (
-                <p className="text-xs text-slate-300 italic mt-2">Assessment not yet completed</p>
+                <p className="text-xs text-slate-300 italic mt-1">Assessment not yet completed</p>
               )}
             </div>
             <button onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors shrink-0 mt-0.5">
+              className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors shrink-0">
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
             </button>
           </div>
-
-          {student.report_queue_id && (
-            <div className="mt-4">
-              <ReportButton student={student} stopProp={false} />
-            </div>
-          )}
         </div>
 
-        {/* Notes */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Counselor Notes</p>
-
-          {notes === null && (
-            <p className="text-sm text-slate-400">Loading…</p>
-          )}
-
-          {notes?.length === 0 && (
-            <div className="text-center py-6">
-              <span className="material-symbols-outlined text-slate-200" style={{ fontSize: '40px' }}>edit_note</span>
-              <p className="text-sm text-slate-400 mt-2">No notes yet</p>
-              <p className="text-xs text-slate-300 mt-0.5">Add your first observation below</p>
+        {/* ── Counselor Notes section ── */}
+        <div className="px-6 pb-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[#1E3A8A]" style={{ fontSize: '16px' }}>description</span>
+              <span className="text-sm font-semibold text-[#1E3A8A] font-sora">Counselor Notes</span>
             </div>
-          )}
+            {lastEntryDate && (
+              <span className="text-xs text-slate-400">Last Entry: {lastEntryDate}</span>
+            )}
+          </div>
 
-          {notes?.length > 0 && (
-            <div className="space-y-3">
-              {notes.map(n => (
-                <div key={n.id} className="flex gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-                  <div className="w-1 rounded-full bg-amber-400 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-700 leading-relaxed">{n.note}</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {n.author} · {new Date(n.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </p>
+          {/* Notes list or empty state */}
+          <div className="rounded-xl bg-slate-50 border border-slate-100 overflow-y-auto" style={{ minHeight: '120px', maxHeight: '180px' }}>
+            {notes === null && (
+              <div className="flex items-center justify-center h-28">
+                <p className="text-sm text-slate-400">Loading…</p>
+              </div>
+            )}
+
+            {notes?.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                <span className="material-symbols-outlined text-[#1E3A8A]/30" style={{ fontSize: '32px' }}>edit_note</span>
+                <p className="text-sm font-medium text-slate-500 mt-2">No notes yet. Add your first observation below</p>
+                <p className="text-xs text-slate-400 mt-1">Document progress, behavioral changes, or intervention steps.</p>
+              </div>
+            )}
+
+            {notes?.length > 0 && (
+              <div className="p-3 space-y-2">
+                {notes.map(n => (
+                  <div key={n.id} className="flex gap-2.5 bg-white border border-slate-100 rounded-lg px-3 py-2.5">
+                    <div className="w-0.5 rounded-full bg-indigo-300 shrink-0 self-stretch" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-700 leading-relaxed">{n.note}</p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {n.author} · {new Date(n.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Add note form */}
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/80">
-          <form onSubmit={save} className="space-y-3">
+        {/* ── New Observation ── */}
+        <div className="px-6 pb-3">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">New Observation</p>
+          <div className="relative">
             <textarea
               ref={inputRef}
               value={draft}
               onChange={e => setDraft(e.target.value)}
               placeholder="Write an observation, action item, or follow-up…"
-              rows={3}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white placeholder-slate-300 resize-none leading-relaxed"
+              rows={4}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white placeholder-slate-300 resize-none leading-relaxed"
             />
-            {/* Tags */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 shrink-0">Tag:</span>
-              {NOTE_TAGS.map(tag => (
-                <button key={tag} type="button" onClick={() => insertTag(tag)}
-                  className="text-xs font-medium text-slate-500 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 rounded-full px-3 py-1 transition-colors">
-                  {tag}
-                </button>
-              ))}
-            </div>
-            {/* Footer row */}
-            <div className="flex items-center justify-between">
-              <button type="button"
-                className="text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
-                View History
-              </button>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={onClose}
-                  className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl transition-colors">
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving || !draft.trim()}
-                  className="text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl px-5 py-2 disabled:opacity-40 transition-colors font-sora">
-                  {saving ? 'Saving…' : 'Save note'}
-                </button>
-              </div>
-            </div>
-          </form>
+            <span className="absolute bottom-3 right-3 text-[10px] text-slate-300 flex items-center gap-1 pointer-events-none">
+              <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>sync</span>
+              Auto-saving enabled
+            </span>
+          </div>
+        </div>
+
+        {/* ── Tags ── */}
+        <div className="px-6 pb-4 flex items-center gap-2">
+          {NOTE_TAGS.map(tag => (
+            <button key={tag} type="button" onClick={() => insertTag(tag)}
+              className="text-xs font-medium text-slate-500 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 rounded-full px-3 py-1.5 transition-colors">
+              + {tag}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+          <button type="button"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 border border-slate-200 hover:border-slate-300 rounded-xl px-4 py-2 transition-colors">
+            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>history</span>
+            View History
+          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={onClose}
+              className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl transition-colors">
+              Cancel
+            </button>
+            <button onClick={save} disabled={saving || !draft.trim()}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-[#00236f] hover:bg-[#001a52] rounded-xl px-5 py-2 disabled:opacity-40 transition-colors font-sora">
+              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>save</span>
+              {saving ? 'Saving…' : 'Save note'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
