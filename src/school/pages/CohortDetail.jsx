@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import { schoolApi } from '../utils/schoolApi';
 
@@ -110,9 +111,9 @@ function StudentModal({ student, onClose }) {
     ? new Date(lastNote.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6"
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6"
       style={{ background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(6px)' }}>
 
       <div
@@ -240,7 +241,8 @@ function StudentModal({ student, onClose }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
