@@ -26,40 +26,87 @@ export default function Sidebar({ schoolName }) {
   const initial = (schoolName || 'G').charAt(0).toUpperCase();
 
   return (
-    <aside className="flex flex-col h-full w-full bg-slate-50 font-sora">
+    <aside style={{
+      display: 'flex', flexDirection: 'column', height: '100%', width: '100%',
+      background: '#fff', fontFamily: 'Sora, sans-serif',
+    }}>
+
       {/* Branding */}
-      <div className="px-4 pt-5 pb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-black text-xl shrink-0"
-            style={{ background: '#00236f' }}>
-            {initial}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-900 leading-tight truncate">{schoolName || 'CareerShifu'}</p>
-            <p className="text-[10px] uppercase font-semibold text-slate-400 tracking-widest mt-0.5">Counselor Portal</p>
+      <div style={{ padding: '20px 16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12,
+            background: '#00236f', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 800, fontSize: 18, flexShrink: 0,
+          }}>{initial}</div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{
+              fontWeight: 700, fontSize: 14, color: '#0f172a',
+              margin: 0, lineHeight: 1.3,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {schoolName || 'CareerShifu'}
+            </p>
+            <p style={{
+              fontSize: 10, fontWeight: 700, color: '#94a3b8',
+              letterSpacing: '0.1em', textTransform: 'uppercase', margin: '3px 0 0',
+            }}>
+              Counselor Portal
+            </p>
           </div>
         </div>
       </div>
 
+      {/* Section label */}
+      <p style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+        color: '#94a3b8', textTransform: 'uppercase',
+        margin: '0 16px 6px', paddingBottom: 6, borderBottom: '1px solid #f1f5f9',
+      }}>
+        Navigation
+      </p>
+
       {/* Nav items */}
-      <nav className="flex-1 px-3 space-y-0.5">
+      <nav style={{ flex: 1, padding: '4px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {NAV.map(item => {
           const isActive = active(item);
           const clickable = !!item.to;
           return (
-            <button key={item.label}
+            <button
+              key={item.label}
               onClick={() => clickable && navigate(item.to)}
               disabled={!clickable}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                isActive
-                  ? 'bg-white text-[#1E3A8A] shadow-sm ring-1 ring-slate-200'
-                  : clickable
-                    ? 'text-slate-600 hover:text-[#1E3A8A] hover:bg-white/70'
-                    : 'text-slate-300 cursor-not-allowed'
-              }`}>
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 12px', borderRadius: 10, border: 'none',
+                fontSize: 13, fontWeight: isActive ? 700 : 500,
+                color: isActive ? '#00236f' : clickable ? '#475569' : '#cbd5e1',
+                background: isActive ? '#eef2ff' : 'transparent',
+                cursor: clickable ? 'pointer' : 'not-allowed',
+                transition: 'background 0.12s, color 0.12s',
+                textAlign: 'left',
+              }}
+              onMouseEnter={e => {
+                if (!isActive && clickable) {
+                  e.currentTarget.style.background = '#f5f7ff';
+                  e.currentTarget.style.color = '#1e3a8a';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive && clickable) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#475569';
+                }
+              }}
+            >
               <span className="material-symbols-outlined" style={{
-                fontSize: '20px',
-                fontVariationSettings: isActive ? "'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24" : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                fontSize: 20,
+                color: isActive ? '#00236f' : clickable ? '#94a3b8' : '#cbd5e1',
+                fontVariationSettings: isActive
+                  ? "'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24"
+                  : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24",
+                flexShrink: 0,
               }}>
                 {item.icon}
               </span>
@@ -70,32 +117,56 @@ export default function Sidebar({ schoolName }) {
       </nav>
 
       {/* Bottom section */}
-      <div className="px-3 pb-4 space-y-1">
+      <div style={{ padding: '8px 10px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+
         {/* New Entry CTA */}
         <button
-          className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all"
-          style={{ background: '#00236f', color: '#fff' }}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: '10px 14px', borderRadius: 10, border: 'none',
+            fontSize: 13, fontWeight: 600, color: '#fff', background: '#00236f',
+            cursor: 'pointer',
+          }}
           onMouseEnter={e => e.currentTarget.style.background = '#001a52'}
           onMouseLeave={e => e.currentTarget.style.background = '#00236f'}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
           New Entry
         </button>
 
         {/* Help Center */}
-        <button className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-400 hover:text-slate-600 hover:bg-white/70 rounded-lg text-sm font-medium transition-all">
-          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>help</span>
+        <button
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+            padding: '10px 12px', borderRadius: 10, border: 'none',
+            fontSize: 13, fontWeight: 500, color: '#64748b', background: 'transparent',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#f8faff'; e.currentTarget.style.color = '#475569'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#94a3b8', flexShrink: 0 }}>help</span>
           Help Center
         </button>
 
+        {/* Divider */}
+        <div style={{ height: 1, background: '#f1f5f9', margin: '4px 2px' }} />
+
         {/* Sign out */}
-        <div className="border-t border-slate-200 pt-1 mt-1">
-          <button onClick={signOut}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-all">
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>logout</span>
-            Sign out
-          </button>
-        </div>
+        <button
+          onClick={signOut}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+            padding: '10px 12px', borderRadius: 10, border: 'none',
+            fontSize: 13, fontWeight: 500, color: '#64748b', background: 'transparent',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#94a3b8', flexShrink: 0 }}>logout</span>
+          Sign out
+        </button>
       </div>
     </aside>
   );

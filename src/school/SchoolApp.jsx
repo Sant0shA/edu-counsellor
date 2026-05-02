@@ -30,31 +30,60 @@ function AuthGuard({ children }) {
   return children;
 }
 
-function TopHeader({ schoolName }) {
+function TopHeader() {
   const auth = (() => { try { return JSON.parse(localStorage.getItem('cs_staff_auth') || '{}'); } catch { return {}; } })();
   const initial = (auth.name || 'C').charAt(0).toUpperCase();
 
   return (
-    <header className="z-10 bg-white border-b border-slate-200 px-6 h-14 flex items-center justify-between shrink-0 font-sora">
+    <header style={{
+      zIndex: 10, background: '#fff', borderBottom: '1px solid #e2e8f0',
+      padding: '0 24px', height: 56,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      flexShrink: 0, fontFamily: 'Sora, sans-serif',
+    }}>
       {/* Search */}
-      <div className="relative hidden sm:block w-72">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" style={{ fontSize: '16px' }}>search</span>
-        <input type="text" placeholder="Search students, cohorts…"
-          className="w-full bg-slate-100 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 placeholder-slate-400" />
+      <div className="hidden sm:block" style={{ position: 'relative' }}>
+        <span className="material-symbols-outlined" style={{
+          position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+          fontSize: 16, color: '#94a3b8', pointerEvents: 'none',
+        }}>search</span>
+        <input
+          type="text"
+          placeholder="Search students, cohorts…"
+          style={{
+            width: 272, background: '#f8faff', border: '1px solid #e2e8f0',
+            borderRadius: 10, paddingLeft: 36, paddingRight: 16,
+            paddingTop: 8, paddingBottom: 8, fontSize: 13, color: '#334155',
+            outline: 'none',
+          }}
+          onFocus={e => e.target.style.borderColor = '#a5b4fc'}
+          onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+        />
       </div>
+
       {/* Right cluster */}
-      <div className="flex items-center gap-3 ml-auto">
-        <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">
-          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>notifications</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+        <button style={{
+          width: 32, height: 32, borderRadius: 99, border: 'none', background: 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#64748b', cursor: 'pointer',
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 20 }}>notifications</span>
         </button>
-        <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">
-          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>help</span>
-        </button>
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-            <span className="text-indigo-700 text-sm font-bold">{initial}</span>
-          </div>
-          <p className="text-sm font-medium text-slate-700 hidden sm:block">{auth.name}</p>
+
+        <div style={{ width: 1, height: 20, background: '#e2e8f0', margin: '0 4px' }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 99,
+            background: '#eef2ff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 700, fontSize: 13, color: '#00236f',
+          }}>{initial}</div>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', margin: 0 }}>{auth.name}</p>
         </div>
       </div>
     </header>
@@ -94,14 +123,14 @@ function Layout({ children }) {
 
   return (
     /* fixed inset-0 flex escapes #root's display:flex/justify-content:center from the student app */
-    <div className="fixed inset-0 flex font-body bg-slate-50" style={{ zIndex: 1 }}>
-      {/* Sidebar column — in flex flow, desktop only */}
-      <div className="hidden md:flex w-64 shrink-0 border-r border-slate-200 flex-col">
+    <div className="fixed inset-0 flex font-body" style={{ zIndex: 1, background: '#f8faff' }}>
+      {/* Sidebar column — desktop only */}
+      <div className="hidden md:flex flex-col" style={{ width: 240, flexShrink: 0, borderRight: '1px solid #e2e8f0' }}>
         <Sidebar schoolName={school?.name} />
       </div>
       {/* Main column — no overflow here so fixed portals stay viewport-relative */}
       <div className="flex-1 flex flex-col min-w-0">
-        <TopHeader schoolName={school?.name} />
+        <TopHeader />
         <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
           {children}
         </main>
