@@ -2,71 +2,135 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { schoolApi } from '../utils/schoolApi';
 
-function DonutRing({ pct, size = 80, strokeWidth = 4, color = '#6366f1' }) {
+/* ─── Donut ring SVG ─── */
+function DonutRing({ pct, size = 80, strokeWidth = 6, color = '#1e3a8a' }) {
   const r = (size - strokeWidth * 2) / 2;
   const circ = 2 * Math.PI * r;
   const arc = (pct / 100) * circ;
-  const center = size / 2;
+  const c = size / 2;
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-      <circle cx={center} cy={center} r={r} fill="none" stroke="#e2e8f0" strokeWidth={strokeWidth} />
-      <circle cx={center} cy={center} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
+      style={{ transform: 'rotate(-90deg)', display: 'block' }}>
+      <circle cx={c} cy={c} r={r} fill="none" stroke="#e2e8f0" strokeWidth={strokeWidth} />
+      <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
         strokeDasharray={`${arc} ${circ}`} strokeLinecap="round" />
     </svg>
   );
 }
 
+/* ─── Stat card ─── */
+function StatCard({ icon, iconBg, iconColor, value, label }) {
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16,
+      padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 18,
+    }}>
+      <div style={{
+        width: 52, height: 52, borderRadius: 14,
+        background: iconBg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 24, color: iconColor,
+          fontVariationSettings: "'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24" }}>
+          {icon}
+        </span>
+      </div>
+      <div>
+        <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: 30, color: '#0f172a', margin: 0, lineHeight: 1 }}>
+          {value}
+        </p>
+        <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>{label}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Cohort card ─── */
 function CohortCard({ cohort }) {
   const navigate = useNavigate();
   const students = parseInt(cohort.student_count || 0);
   const reports = parseInt(cohort.report_count || 0);
   const pct = students > 0 ? Math.round((reports / students) * 100) : 0;
+  const onTrack = pct >= 50;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 hover:border-indigo-200 hover:shadow-md transition-all flex flex-col gap-5">
-      <div className="flex items-center gap-5">
-        <div className="relative shrink-0">
-          <DonutRing pct={pct} size={80} strokeWidth={6} color="#6366f1" />
-          <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-indigo-600 font-sora">
-            {pct}%
-          </span>
+    <div
+      style={{
+        background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16,
+        padding: 24, display: 'flex', flexDirection: 'column', gap: 20,
+        transition: 'box-shadow 0.15s, border-color 0.15s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,35,111,0.10)'; e.currentTarget.style.borderColor = '#a5b4fc'; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+    >
+      {/* Top row: donut + name + badge */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <DonutRing pct={pct} size={80} strokeWidth={7} color={onTrack ? '#15803d' : '#d97706'} />
+          <span style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: 15,
+            color: onTrack ? '#15803d' : '#d97706',
+          }}>{pct}%</span>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-lg font-bold text-slate-900 leading-tight font-sora">{cohort.name}</p>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: 16, color: '#0f172a', margin: '0 0 8px', lineHeight: 1.3 }}>
+            {cohort.name}
+          </p>
           {students > 0 && (
-            <span className={`mt-2 inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${
-              pct >= 50
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-amber-50 text-amber-700'
-            }`}>
-              {pct >= 50 ? 'On Track' : 'Attention Needed'}
+            <span style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
+              padding: '4px 10px', borderRadius: 4,
+              background: onTrack ? '#dcfce7' : '#fef9c3',
+              color: onTrack ? '#15803d' : '#a16207',
+              border: `1px solid ${onTrack ? '#bbf7d0' : '#fde68a'}`,
+            }}>
+              {onTrack ? 'ON TRACK' : 'ATTENTION NEEDED'}
             </span>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 border-t border-slate-100 pt-5">
+      {/* Mini stats */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: 8, borderTop: '1px solid #f1f5f9', paddingTop: 20,
+      }}>
         {[
           { label: 'Students', value: students },
           { label: 'Reports', value: reports },
           { label: 'Complete', value: `${pct}%` },
         ].map(s => (
-          <div key={s.label} className="text-center">
-            <p className="text-2xl font-bold text-slate-800 font-sora">{s.value}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{s.label}</p>
+          <div key={s.label} style={{ textAlign: 'center' }}>
+            <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: 24, color: '#0f172a', margin: 0 }}>
+              {s.value}
+            </p>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: '3px 0 0' }}>{s.label}</p>
           </div>
         ))}
       </div>
 
+      {/* CTA */}
       <button
         onClick={() => navigate(`/school/cohorts/${cohort.id}`)}
-        className="w-full text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl py-3 transition-colors font-sora">
+        style={{
+          width: '100%', fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: 13,
+          color: '#00236f', background: '#eef2ff',
+          border: 'none', borderRadius: 10, padding: '11px 0', cursor: 'pointer',
+          transition: 'background 0.15s',
+        }}
+        onMouseEnter={e => e.target.style.background = '#e0e7ff'}
+        onMouseLeave={e => e.target.style.background = '#eef2ff'}
+      >
         View Progress →
       </button>
     </div>
   );
 }
 
+/* ─── Dashboard page ─── */
 export default function SchoolDashboard() {
   const [cohorts, setCohorts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -81,66 +145,83 @@ export default function SchoolDashboard() {
 
   const totalStudents = cohorts.reduce((s, c) => s + parseInt(c.student_count || 0), 0);
   const totalReports = cohorts.reduce((s, c) => s + parseInt(c.report_count || 0), 0);
-  const pct = totalStudents > 0 ? Math.round((totalReports / totalStudents) * 100) : 0;
+  const overallPct = totalStudents > 0 ? Math.round((totalReports / totalStudents) * 100) : 0;
 
   return (
-    <div className="p-8 min-h-full bg-slate-50">
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+    <div style={{ padding: 32, minHeight: '100%', background: '#f8faff', boxSizing: 'border-box' }}>
 
-      {/* Stat strip */}
+      {/* Page title */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: 28, color: '#0f172a', margin: '0 0 4px' }}>
+          Dashboard
+        </h1>
+        <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>
+          Overview of all cohorts and student progress
+        </p>
+      </div>
+
+      {error && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', fontSize: 13, color: '#dc2626', marginBottom: 20 }}>
+          {error}
+        </div>
+      )}
+
+      {/* ── Stat strip ── */}
       {!loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined symbol-fill text-indigo-600" style={{ fontSize: '26px' }}>group</span>
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-slate-900 font-sora">{totalStudents}</p>
-              <p className="text-sm text-slate-400 mt-0.5">Total students</p>
-            </div>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 32 }}>
+          <StatCard icon="group" iconBg="#eef2ff" iconColor="#4338ca" value={totalStudents} label="Total students" />
+          <StatCard icon="task_alt" iconBg="#f0fdf4" iconColor="#15803d" value={totalReports} label="Reports ready" />
+          <StatCard icon="trending_up" iconBg="#f0f9ff" iconColor="#0369a1" value={`${overallPct}%`} label="Overall completion" />
+        </div>
+      )}
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined symbol-fill text-emerald-600" style={{ fontSize: '26px' }}>task_alt</span>
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-slate-900 font-sora">{totalReports}</p>
-              <p className="text-sm text-slate-400 mt-0.5">Reports ready</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-5">
-            <div className="relative shrink-0">
-              <DonutRing pct={pct} size={56} strokeWidth={5} color="#7c3aed" />
-              <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-violet-700">
-                {pct}%
+      {/* ── Overall progress bar ── */}
+      {!loading && totalStudents > 0 && (
+        <div style={{
+          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16,
+          padding: '20px 24px', marginBottom: 32,
+          display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
+        }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#64748b', textTransform: 'uppercase' }}>
+                Overall Progress
+              </span>
+              <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: 18, color: '#1e3a8a' }}>
+                {overallPct}%
               </span>
             </div>
-            <div>
-              <p className="text-3xl font-bold text-slate-900 font-sora">{pct}%</p>
-              <p className="text-sm text-slate-400 mt-0.5">Overall completion</p>
+            <div style={{ height: 8, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${overallPct}%`, background: '#1e3a8a', borderRadius: 99, transition: 'width 0.5s ease' }} />
             </div>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: '6px 0 0' }}>
+              {totalReports} of {totalStudents} students have completed reports
+            </p>
           </div>
         </div>
       )}
 
-      <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-5">Your Cohorts</h2>
+      {/* ── Cohorts section ── */}
+      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#64748b', textTransform: 'uppercase', margin: '0 0 16px' }}>
+        Your Cohorts
+      </p>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
           {[1, 2].map(i => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-6 animate-pulse h-56" />
+            <div key={i} style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', height: 220 }} />
           ))}
         </div>
       ) : cohorts.length === 0 ? (
-        <div className="text-center py-24">
-          <span className="material-symbols-outlined text-slate-300" style={{ fontSize: '56px' }}>group</span>
-          <p className="text-base text-slate-500 font-semibold mt-4 font-sora">No cohorts yet</p>
-          <p className="text-sm text-slate-400 mt-1">Ask your administrator to set up cohorts.</p>
+        <div style={{ textAlign: 'center', padding: '80px 0' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 52, color: '#cbd5e1' }}>group</span>
+          <p style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: 16, color: '#64748b', margin: '16px 0 4px' }}>
+            No cohorts yet
+          </p>
+          <p style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>Ask your administrator to set up cohorts.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
           {cohorts.map(c => <CohortCard key={c.id} cohort={c} />)}
         </div>
       )}
